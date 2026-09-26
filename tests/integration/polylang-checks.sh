@@ -28,18 +28,19 @@
 # internal, non-public taxonomy) and that ordinary translated content
 # (Polylang posts/pages, each a real, separate post_id with its own postmeta)
 # already works with zero code changes — nothing in CCC special-cases a post
-# type, and Polylang's translations are genuinely separate post rows. It does
-# NOT add real per-language homepage support (Rank Math itself has no
-# Polylang integration at all — verified: only Yoast has a dedicated
-# integrations/wpseo/ compat layer in Polylang's own source, which
+# type, and Polylang's translations are genuinely separate post rows. Uses
+# Rank Math specifically to ALSO prove that real per-language homepage
+# support (added in a later session — see polylang-yoast-home-checks.sh)
+# resolves "/fr/" to HOME_ID + lang=fr on ANY adapter (resolution is adapter-
+# independent) while correctly reporting `editable: false` for one, Rank
+# Math, with no Polylang integration at all (verified: only Yoast has a
+# dedicated integrations/wpseo/ compat layer in Polylang's own source, which
 # specifically registers wpseo_titles' title-home-wpseo/metadesc-home-wpseo
 # for Polylang's string-translation system; Rank Math's homepage option has
 # no such wrapping and stays one shared value across every language,
-# independent of CCC). A French/other-language "your latest posts" homepage
-# is unresolvable, not mis-resolved — a real, if narrow, gap; not silently
-# worse. Building genuine multilingual-aware homepage targeting is a bigger,
-# separate feature (see BACKLOG.md) — this harness pins the safety fix that
-# shipped this session, not that larger feature.
+# independent of CCC) — an *apply* attempt gets ccc_language_unsupported, not
+# a silent shared-value write. polylang-yoast-home-checks.sh proves the real
+# read/write round-trip end-to-end, for the one adapter it is real for.
 #
 # Self-contained harness (own site dir/port), like woocommerce/multisite-
 # checks.sh — NOT wired into run.sh. Run manually:
@@ -178,7 +179,8 @@ req() {
 
 echo "-- the regression this harness pins --"
 req POST /resolve "{\"urls\":[\"$URL/fr/\"]}"
-check "resolve: French homepage URL (/fr/) is unresolvable, NOT Polylang's own 'language' term" 200 "$RESP_HTTP" '.[0].error' 'ccc_unresolvable' "$RESP_BODY"
+check "resolve: French homepage URL (/fr/) is HOME_ID (lang fr), NOT Polylang's own 'language' term" 200 "$RESP_HTTP" '.[0].post_id' '0' "$RESP_BODY"
+check "resolve: ...but not editable — Rank Math has no per-language homepage storage" 200 "$RESP_HTTP" '.[0].editable' 'false' "$RESP_BODY"
 
 req POST /apply "{\"changes\":[{\"post_id\":-5,\"title\":\"Should not silently succeed\"}]}"
 check "apply: a direct attempt on Polylang's internal language term is rejected (no such term to CCC — it's non-public, resolve_url() would never hand this out, but apply() is also asked directly here)" 200 "$RESP_HTTP" '.[0].ok' 'false' "$RESP_BODY"

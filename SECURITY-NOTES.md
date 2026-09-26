@@ -304,6 +304,67 @@ real French-homepage-specific fix would need Polylang-aware URL resolution
 that doesn't exist yet, tracked as an open BACKLOG.md item, not a safety
 concern.
 
+## Addendum — 26 Sept 2026 (real per-language homepage support, v0.9.0 — new feature, security-reviewed)
+
+The addendum above confirmed the DEFAULT language's homepage write was safe
+on a Yoast+Polylang site, but left the actual feature gap open: a
+non-default language's own homepage (`/fr/`) was `ccc_unresolvable`, not a
+target CCC could reach. This session closed that gap for Yoast (the only
+adapter with real per-language homepage storage — confirmed against
+Polylang's own source: `src/integrations/` has a dedicated compat module
+only for Yoast, none for Rank Math/SEOPress/AIOSEO).
+
+**New capability surface, security-relevant bits:**
+
+- New optional `lang` field on `/apply`/`/revert` change items. Validated
+  before anything is written: must be a string, must name one of the
+  site's own currently-active Polylang languages
+  (`in_array($lang, pll_languages_list(), true)` — not a bare "is this a
+  plausible-looking language code" regex), and is only accepted alongside
+  `post_id: 0` (`ccc_language_requires_home` otherwise) — so this can't be
+  smuggled onto an ordinary post/term write to do anything unexpected
+  there.
+- Capability check is unchanged: `manage_options`, gated exactly like the
+  existing default-language homepage target, checked BEFORE the
+  language-specific adapter-support gate — a user who can't manage the
+  homepage at all can't discover adapter support by probing `lang` values
+  either (same ordering `can_edit_target()` already enforced).
+- The write (`PLL_MO::import_from_db()`/`add_entry()`/`export_to_db()`)
+  targets a `PLL_Language` object obtained via `PLL()->model->get_language(
+  $lang)`, itself only reachable after the `in_array()` active-language
+  check above passes — an attacker-controlled `lang` string is never
+  passed to Polylang's API directly without that allowlist check first
+  (fuzzing-relevant: unicode/oversized/null-byte `lang` strings all fail
+  the `in_array()` check the same as any other unrecognised code, same
+  class of guard `security-checks.sh` already exercises for `post_id`).
+- `resolve_url()`'s new Polylang-language-home matching
+  (`resolve_polylang_home_language()`) runs LAST, only after every existing
+  post/term resolution path has already missed — it cannot shadow or
+  pre-empt a real post/term match, only fill the specific gap that used to
+  fall through to `ccc_unresolvable`.
+- Resolution itself (`/resolve`) is deliberately adapter-independent — it
+  reports `lang` for a matched URL regardless of which SEO plugin is
+  active, with `editable: false` for one that can't act on it. This is not
+  an information leak beyond what `/resolve` already exposes for every
+  other target (current title/description text, which SEO plugin is
+  active): whether a site runs Polylang, and what its active language
+  codes are, is already public information any visitor can see from the
+  site's own rendered `<html lang>` attribute and URL structure.
+- Verified this session (not assumed) that a `lang`-qualified write cannot
+  cross into another language's translation or the default-language
+  value: `tests/integration/polylang-yoast-home-checks.sh` proves a French
+  write leaves the raw (default-language) `wpseo_titles` option
+  byte-for-byte untouched, and that reverting a French write restores
+  Yoast's real fallback rendering (the default-language value, per real
+  gettext semantics — confirmed against a real install this is what an
+  untranslated string actually renders as, not a guess) rather than
+  leaving anything blank or duplicated across languages.
+
+No new external requests, no new stored PII, no change to the
+authentication model. Full write-up (design rationale, REST contract,
+adapter-support matrix) in README.md's "Multilingual sites" section and
+CHANGELOG.md's 0.9.0 entry.
+
 ## Not covered here (separate backlog items)
 
 - PHPCS / WordPress-Coding-Standards pass.

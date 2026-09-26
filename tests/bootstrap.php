@@ -24,6 +24,22 @@ function cc_reset_wp() {
 	$GLOBALS['cc_term_meta']        = array(); // term_id => key => value
 	$GLOBALS['cc_deny_terms']       = array(); // term_ids current user may NOT edit
 	$GLOBALS['cc_taxonomy_public']  = array(); // taxonomy => bool (get_taxonomy() stub; default true)
+	$GLOBALS['cc_pll_languages']    = array(); // active Polylang language slugs; empty = Polylang not active
+	$GLOBALS['cc_pll_default_lang'] = ''; // pll_default_language() stub
+	$GLOBALS['cc_pll_strings']      = array(); // lang slug => original string => translation (PLL_MO stub's persisted store)
+}
+
+/**
+ * Test helper: activate the Polylang stubs with the given active language
+ * slugs and default language — mirrors calling PLL()->model->add_language()
+ * + update_default_lang() on a real install. Leaving this uncalled (the
+ * cc_reset_wp() default) means pll_languages_list() is empty and every
+ * function_exists( 'pll_languages_list' ) gate in the plugin behaves exactly
+ * as if Polylang were not installed.
+ */
+function cc_enable_polylang( $languages, $default_lang ) {
+	$GLOBALS['cc_pll_languages']    = $languages;
+	$GLOBALS['cc_pll_default_lang'] = $default_lang;
 }
 cc_reset_wp();
 
@@ -295,6 +311,86 @@ class WPSEO_Options {
 		$opts[ $key ] = $value;
 		update_option( $group, $opts );
 		return true;
+	}
+}
+
+/**
+ * Minimal stand-in for Polylang's multilingual API, backed by the
+ * cc_pll_* globals `cc_enable_polylang()` sets. Real behaviour — PLL_MO's
+ * actual on-disk/DB format, PLL()'s real context classes
+ * (PLL_Admin/PLL_Frontend/PLL_REST_Request), pll_home_url()'s three URL
+ * modes — is proven against a real Polylang(+Yoast) install in
+ * tests/integration/, same split as WPSEO_Options/WPSEO_Taxonomy_Meta
+ * above. This stand-in only needs to be faithful to the ONE behaviour
+ * CCC_Adapter/CCC_Service actually depend on: an untranslated string falls
+ * back to itself (real gettext semantics, confirmed against a real
+ * Yoast+Polylang install — see SECURITY-NOTES.md's 26 Sept addendum),
+ * never to ''.
+ */
+function pll_languages_list() {
+	return $GLOBALS['cc_pll_languages'];
+}
+function pll_default_language() {
+	return $GLOBALS['cc_pll_default_lang'];
+}
+function pll_home_url( $lang = '' ) {
+	return home_url( '/' . $lang . '/' );
+}
+function pll_translate_string( $string, $lang ) {
+	$entries = isset( $GLOBALS['cc_pll_strings'][ $lang ] ) ? $GLOBALS['cc_pll_strings'][ $lang ] : array();
+	return array_key_exists( $string, $entries ) ? $entries[ $string ] : $string;
+}
+
+class CC_Test_PLL_Language {
+	public $slug;
+	public function __construct( $slug ) {
+		$this->slug = $slug;
+	}
+}
+class CC_Test_PLL_Model {
+	public function get_language( $slug ) {
+		return in_array( $slug, $GLOBALS['cc_pll_languages'], true ) ? new CC_Test_PLL_Language( $slug ) : false;
+	}
+}
+class CC_Test_PLL {
+	public $model;
+	public function __construct() {
+		$this->model = new CC_Test_PLL_Model();
+	}
+}
+function PLL() {
+	static $instance = null;
+	if ( null === $instance ) {
+		$instance = new CC_Test_PLL();
+	}
+	return $instance;
+}
+
+/**
+ * Minimal stand-in for Polylang's PLL_MO — the same import/add_entry/
+ * export_to_db round trip CCC_Adapter::set_home_field() drives, verified
+ * against the real class end-to-end (write via one REST request, read back
+ * via pll_translate_string() in a separate one) in SECURITY-NOTES.md's 26
+ * Sept addendum.
+ */
+class PLL_MO {
+	private $lang    = '';
+	private $entries = array();
+
+	public function import_from_db( $language ) {
+		$this->lang    = is_object( $language ) ? $language->slug : $language;
+		$this->entries = isset( $GLOBALS['cc_pll_strings'][ $this->lang ] ) ? $GLOBALS['cc_pll_strings'][ $this->lang ] : array();
+	}
+	public function make_entry( $original, $translation ) {
+		return array( $original, $translation );
+	}
+	public function add_entry( $entry ) {
+		list( $original, $translation )       = $entry;
+		$this->entries[ $original ] = $translation;
+	}
+	public function export_to_db( $language ) {
+		$lang                             = is_object( $language ) ? $language->slug : $language;
+		$GLOBALS['cc_pll_strings'][ $lang ] = $this->entries;
 	}
 }
 

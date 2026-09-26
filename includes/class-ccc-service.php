@@ -30,10 +30,20 @@ class CCC_Service {
 	 * latest posts" homepage, or to a NEGATIVE int (-$term_id) for a
 	 * taxonomy archive (e.g. /category/news/).
 	 *
-	 * @param string $url URL to resolve.
+	 * @param string $url  URL to resolve.
+	 * @param string $lang Out param (by reference, like preg_match()'s
+	 *                     $matches) — set to a non-default Polylang language
+	 *                     slug when $url resolved to THAT language's "your
+	 *                     latest posts" homepage (e.g. "fr" for "/fr/"); ''
+	 *                     for the default language, a non-multilingual site,
+	 *                     or any non-HOME_ID result. Callers that don't need
+	 *                     it can omit the argument entirely, same as
+	 *                     preg_match()'s optional $matches.
 	 * @return int|WP_Error Post id (>= 0), a negative term-id sentinel, or an error explaining why not.
 	 */
-	public static function resolve_url( $url ) {
+	public static function resolve_url( $url, &$lang = null ) {
+		$lang = '';
+
 		if ( ! is_string( $url ) || '' === trim( $url ) ) {
 			return new WP_Error( 'ccc_bad_url', __( 'Empty URL.', 'crawl-cove-connector' ), array( 'status' => 400 ) );
 		}
@@ -94,11 +104,65 @@ class CCC_Service {
 			}
 		}
 
+		// Last resort, only when Polylang is active and this site's homepage
+		// has no static front page: a language-prefixed URL (e.g. "/fr/")
+		// that is none of the above IS the "your latest posts" homepage —
+		// just for a language other than the default one, which
+		// is_home_url() (correctly) never matches. See BACKLOG.md/
+		// SECURITY-NOTES.md's 26 Sept entries for why this was previously
+		// left unresolvable rather than misresolved.
+		$matched_lang = self::resolve_polylang_home_language( $url );
+		if ( '' !== $matched_lang ) {
+			$lang = $matched_lang;
+			return self::HOME_ID;
+		}
+
 		return new WP_Error(
 			'ccc_unresolvable',
 			__( 'URL does not map to a post, page or taxonomy archive.', 'crawl-cove-connector' ),
 			array( 'status' => 404 )
 		);
+	}
+
+	/**
+	 * Whether $url is a NON-default Polylang language's "your latest posts"
+	 * homepage. '' when Polylang isn't active, this site has a static front
+	 * page (each language's front page is then a real, separate post —
+	 * already resolved by url_to_postid() above, nothing special needed),
+	 * or $url doesn't match any active language's home URL.
+	 *
+	 * Deliberately uses `pll_home_url()` — Polylang's own public `@api`
+	 * function — rather than hand-parsing the URL: it already covers all
+	 * three of Polylang's URL modes (directory "/fr/", subdomain
+	 * "fr.example.com", and separate per-language domains), verified against
+	 * a real Polylang install (directory mode) end-to-end, across separate
+	 * HTTP requests, not just read from source.
+	 *
+	 * @param string $url URL already confirmed to be on this site.
+	 * @return string Non-default language slug, or ''.
+	 */
+	private static function resolve_polylang_home_language( $url ) {
+		if ( 'page' === get_option( 'show_on_front' ) ) {
+			return '';
+		}
+		if ( ! function_exists( 'pll_languages_list' ) || ! function_exists( 'pll_home_url' ) ) {
+			return '';
+		}
+		$default_lang = function_exists( 'pll_default_language' ) ? pll_default_language() : '';
+		$url_path     = untrailingslashit( (string) wp_parse_url( $url, PHP_URL_PATH ) );
+		if ( '' !== (string) wp_parse_url( $url, PHP_URL_QUERY ) ) {
+			return ''; // Same rule as is_home_url(): a query string is never a homepage URL.
+		}
+		foreach ( pll_languages_list() as $lang_slug ) {
+			if ( $lang_slug === $default_lang ) {
+				continue; // Default language is is_home_url()'s job, already tried above.
+			}
+			$candidate_path = untrailingslashit( (string) wp_parse_url( pll_home_url( $lang_slug ), PHP_URL_PATH ) );
+			if ( $url_path === $candidate_path ) {
+				return $lang_slug;
+			}
+		}
+		return '';
 	}
 
 	/**
@@ -157,18 +221,23 @@ class CCC_Service {
 	 *
 	 * @param int         $post_id Post id, or HOME_ID.
 	 * @param CCC_Adapter $adapter Active SEO adapter to read current values from.
+	 * @param string      $lang    Non-default Polylang language slug, HOME_ID only; '' otherwise.
 	 * @return array
 	 */
-	public static function describe( $post_id, CCC_Adapter $adapter ) {
+	public static function describe( $post_id, CCC_Adapter $adapter, $lang = '' ) {
 		if ( self::HOME_ID === $post_id ) {
 			return array(
 				'post_id'    => self::HOME_ID,
-				'post_title' => __( 'Homepage (latest posts)', 'crawl-cove-connector' ),
-				'permalink'  => home_url( '/' ),
-				'editable'   => self::can_edit_target( $post_id ) && $adapter->supports_home(),
+				'lang'       => $lang,
+				'post_title' => '' !== $lang
+					/* translators: %s: Polylang language slug, e.g. "fr" */
+					? sprintf( __( 'Homepage (latest posts) — %s', 'crawl-cove-connector' ), $lang )
+					: __( 'Homepage (latest posts)', 'crawl-cove-connector' ),
+				'permalink'  => ( '' !== $lang && function_exists( 'pll_home_url' ) ) ? pll_home_url( $lang ) : home_url( '/' ),
+				'editable'   => self::can_edit_target( $post_id ) && $adapter->supports_home() && ( '' === $lang || $adapter->supports_language_home() ),
 				'current'    => array(
-					'title'       => $adapter->get_title( $post_id ),
-					'description' => $adapter->get_description( $post_id ),
+					'title'       => $adapter->get_title( $post_id, $lang ),
+					'description' => $adapter->get_description( $post_id, $lang ),
 				),
 			);
 		}
@@ -177,6 +246,7 @@ class CCC_Service {
 			$link = ( $term && ! is_wp_error( $term ) ) ? get_term_link( $term ) : '';
 			return array(
 				'post_id'    => (int) $post_id,
+				'lang'       => '',
 				'post_title' => ( $term && ! is_wp_error( $term ) ) ? $term->name : '',
 				'permalink'  => is_wp_error( $link ) ? '' : $link,
 				'editable'   => self::can_edit_target( $post_id ) && $adapter->supports_term(),
@@ -188,6 +258,7 @@ class CCC_Service {
 		}
 		return array(
 			'post_id'    => (int) $post_id,
+			'lang'       => '',
 			'post_title' => get_the_title( $post_id ),
 			'permalink'  => get_permalink( $post_id ),
 			'editable'   => self::can_edit_target( $post_id ),
@@ -201,16 +272,24 @@ class CCC_Service {
 	/**
 	 * Validate one change payload item. Returns a normalised array or WP_Error.
 	 *
-	 * Accepted shape: { url? , post_id?, title?, description? } — at least one
-	 * of url/post_id, at least one of title/description.
+	 * Accepted shape: { url? , post_id?, lang?, title?, description? } — at
+	 * least one of url/post_id, at least one of title/description. `lang` is
+	 * only meaningful alongside post_id 0/a URL that resolves to it (the
+	 * homepage) on a Polylang site — see resolve_polylang_home_language()'s
+	 * docblock and CCC_Adapter::supports_language_home().
 	 *
 	 * @param mixed $item One raw change item from the request body.
-	 * @return array|WP_Error { post_id, fields: { title?: string, description?: string } }
+	 * @return array|WP_Error { post_id, lang, fields: { title?: string, description?: string } }
 	 */
 	public static function validate_change( $item ) {
 		if ( ! is_array( $item ) ) {
 			return new WP_Error( 'ccc_bad_change', __( 'Each change must be an object.', 'crawl-cove-connector' ), array( 'status' => 400 ) );
 		}
+
+		// An explicit `lang` on the item wins over one inferred from
+		// resolving a `url` below — lets a caller re-target a change
+		// discovered via URL, or supply one directly alongside a post_id.
+		$lang = '';
 
 		if ( array_key_exists( 'post_id', $item ) && is_numeric( $item['post_id'] ) ) {
 			$post_id = (int) $item['post_id'];
@@ -240,12 +319,45 @@ class CCC_Service {
 				return new WP_Error( 'ccc_no_post', __( 'No post with that id.', 'crawl-cove-connector' ), array( 'status' => 404 ) );
 			}
 		} elseif ( isset( $item['url'] ) ) {
-			$post_id = self::resolve_url( $item['url'] );
+			$post_id = self::resolve_url( $item['url'], $lang );
 			if ( is_wp_error( $post_id ) ) {
 				return $post_id;
 			}
 		} else {
 			return new WP_Error( 'ccc_no_target', __( 'A change needs a url or a post_id.', 'crawl-cove-connector' ), array( 'status' => 400 ) );
+		}
+
+		if ( array_key_exists( 'lang', $item ) && null !== $item['lang'] && '' !== $item['lang'] ) {
+			if ( ! is_string( $item['lang'] ) ) {
+				return new WP_Error( 'ccc_bad_value', __( 'lang must be a string.', 'crawl-cove-connector' ), array( 'status' => 400 ) );
+			}
+			$lang = $item['lang'];
+		}
+
+		if ( '' !== $lang ) {
+			if ( self::HOME_ID !== $post_id ) {
+				return new WP_Error( 'ccc_language_requires_home', __( 'lang is only meaningful for the homepage (post_id 0).', 'crawl-cove-connector' ), array( 'status' => 400 ) );
+			}
+			// function_exists() alone isn't quite the right signal: a real
+			// Polylang install with zero languages configured (nothing to
+			// target) and "Polylang isn't even active" both need the same
+			// ccc_multilingual_required answer, not ccc_no_such_language.
+			$active_languages = function_exists( 'pll_languages_list' ) ? pll_languages_list() : array();
+			if ( ! $active_languages ) {
+				return new WP_Error( 'ccc_multilingual_required', __( 'This site has no supported multilingual plugin active.', 'crawl-cove-connector' ), array( 'status' => 400 ) );
+			}
+			if ( ! in_array( $lang, $active_languages, true ) ) {
+				return new WP_Error( 'ccc_no_such_language', __( 'No active language with that code.', 'crawl-cove-connector' ), array( 'status' => 404 ) );
+			}
+			// The default language IS the plain homepage target — same
+			// value, same storage, nothing "per-language" about it. Treat it
+			// identically to lang being omitted so the write path below has
+			// exactly one branch to worry about, not two that happen to
+			// agree.
+			$default_lang = function_exists( 'pll_default_language' ) ? pll_default_language() : '';
+			if ( $lang === $default_lang ) {
+				$lang = '';
+			}
 		}
 
 		$fields = array();
@@ -278,6 +390,7 @@ class CCC_Service {
 
 		return array(
 			'post_id' => $post_id,
+			'lang'    => $lang,
 			'fields'  => $fields,
 		);
 	}
@@ -321,6 +434,7 @@ class CCC_Service {
 			}
 
 			$post_id = $valid['post_id'];
+			$lang    = $valid['lang'];
 			if ( self::HOME_ID === $post_id && ! $adapter->supports_home() ) {
 				$results[] = array(
 					'index'   => $i,
@@ -328,6 +442,16 @@ class CCC_Service {
 					'error'   => 'ccc_home_unsupported',
 					/* translators: %s: active SEO plugin's display name */
 					'message' => sprintf( __( '%s does not support homepage title/description changes yet.', 'crawl-cove-connector' ), $adapter->label() ),
+				);
+				continue;
+			}
+			if ( '' !== $lang && ! $adapter->supports_language_home() ) {
+				$results[] = array(
+					'index'   => $i,
+					'ok'      => false,
+					'error'   => 'ccc_language_unsupported',
+					/* translators: %s: active SEO plugin's display name */
+					'message' => sprintf( __( '%s does not support per-language homepage title/description changes yet.', 'crawl-cove-connector' ), $adapter->label() ),
 				);
 				continue;
 			}
@@ -353,9 +477,14 @@ class CCC_Service {
 
 			$applied = array();
 			foreach ( $valid['fields'] as $field => $to ) {
+				// can_clear_home_title() is Rank Math's own gap (no template
+				// fallback), and Rank Math never reaches this branch with a
+				// non-'' $lang (it fails supports_language_home() above
+				// first) — this guard is deliberately unconditional on
+				// $lang, not because language homes need it too.
 				if ( self::HOME_ID === $post_id && 'title' === $field && '' === $to && ! $adapter->can_clear_home_title() ) {
 					$applied[ $field ] = array(
-						'from'    => $adapter->get_title( $post_id ),
+						'from'    => $adapter->get_title( $post_id, $lang ),
 						'to'      => '',
 						'changed' => false,
 						'error'   => 'ccc_home_title_clear_unsupported',
@@ -363,7 +492,7 @@ class CCC_Service {
 					);
 					continue;
 				}
-				$from = ( 'title' === $field ) ? $adapter->get_title( $post_id ) : $adapter->get_description( $post_id );
+				$from = ( 'title' === $field ) ? $adapter->get_title( $post_id, $lang ) : $adapter->get_description( $post_id, $lang );
 				$step = array(
 					'from'    => $from,
 					'to'      => $to,
@@ -371,11 +500,11 @@ class CCC_Service {
 				);
 				if ( ! $dry_run && $from !== $to ) {
 					if ( 'title' === $field ) {
-						$adapter->set_title( $post_id, $to );
+						$adapter->set_title( $post_id, $to, $lang );
 					} else {
-						$adapter->set_description( $post_id, $to );
+						$adapter->set_description( $post_id, $to, $lang );
 					}
-					$entry                       = CCC_Change_Log::record( $post_id, $field, $from, $to, $source );
+					$entry                       = CCC_Change_Log::record( $post_id, $field, $from, $to, $source, $lang );
 					$step['change_id']           = $entry['id'];
 					$touched_targets[ $post_id ] = true;
 				}

@@ -102,12 +102,14 @@ class CCC_Adapter {
 	/**
 	 * Currently stored SEO title override ('' = plugin default template).
 	 *
-	 * @param int $post_id Post id, or CCC_Service::HOME_ID for the homepage.
+	 * @param int    $post_id Post id, or CCC_Service::HOME_ID for the homepage.
+	 * @param string $lang    Non-default Polylang language slug, homepage only
+	 *                        (see get_home_field()); '' for the ordinary target.
 	 * @return string
 	 */
-	public function get_title( $post_id ) {
+	public function get_title( $post_id, $lang = '' ) {
 		if ( 0 === $post_id ) {
-			return $this->get_home_field( 'title' );
+			return $this->get_home_field( 'title', $lang );
 		}
 		if ( $post_id < 0 ) {
 			return $this->get_term_field( 'title', -$post_id );
@@ -121,12 +123,14 @@ class CCC_Adapter {
 	/**
 	 * Currently stored meta description ('' = none set).
 	 *
-	 * @param int $post_id Post id, or CCC_Service::HOME_ID for the homepage.
+	 * @param int    $post_id Post id, or CCC_Service::HOME_ID for the homepage.
+	 * @param string $lang    Non-default Polylang language slug, homepage only
+	 *                        (see get_home_field()); '' for the ordinary target.
 	 * @return string
 	 */
-	public function get_description( $post_id ) {
+	public function get_description( $post_id, $lang = '' ) {
 		if ( 0 === $post_id ) {
-			return $this->get_home_field( 'description' );
+			return $this->get_home_field( 'description', $lang );
 		}
 		if ( $post_id < 0 ) {
 			return $this->get_term_field( 'description', -$post_id );
@@ -142,10 +146,12 @@ class CCC_Adapter {
 	 *
 	 * @param int    $post_id Post id, or CCC_Service::HOME_ID for the homepage.
 	 * @param string $value   New title override; '' removes it.
+	 * @param string $lang    Non-default Polylang language slug, homepage only
+	 *                        (see set_home_field()); '' for the ordinary target.
 	 */
-	public function set_title( $post_id, $value ) {
+	public function set_title( $post_id, $value, $lang = '' ) {
 		if ( 0 === $post_id ) {
-			$this->set_home_field( 'title', $value );
+			$this->set_home_field( 'title', $value, $lang );
 			return;
 		}
 		if ( $post_id < 0 ) {
@@ -164,10 +170,12 @@ class CCC_Adapter {
 	 *
 	 * @param int    $post_id Post id, or CCC_Service::HOME_ID for the homepage.
 	 * @param string $value   New meta description; '' removes it.
+	 * @param string $lang    Non-default Polylang language slug, homepage only
+	 *                        (see set_home_field()); '' for the ordinary target.
 	 */
-	public function set_description( $post_id, $value ) {
+	public function set_description( $post_id, $value, $lang = '' ) {
 		if ( 0 === $post_id ) {
-			$this->set_home_field( 'description', $value );
+			$this->set_home_field( 'description', $value, $lang );
 			return;
 		}
 		if ( $post_id < 0 ) {
@@ -273,14 +281,57 @@ class CCC_Adapter {
 	}
 
 	/**
+	 * Whether this adapter can read/write the "your latest posts" homepage
+	 * title/description for a Polylang language OTHER than the site's
+	 * default one. True for Yoast only — verified against real Polylang
+	 * source (26 Sept 2026): `src/integrations/` ships a dedicated
+	 * compatibility module ONLY for Yoast (`integrations/wpseo/wpseo.php`,
+	 * `PLL_WPSEO::wpseo_translate_options()` registers `title-home-wpseo`/
+	 * `metadesc-home-wpseo` with Polylang's own string-translation system);
+	 * there is no `integrations/rankmath`, `integrations/seopress` or
+	 * `integrations/aioseo` directory at all. Rank Math/SEOPress/AIOSEO's
+	 * homepage title/description is one shared value site-wide, independent
+	 * of Polylang's active language — nothing for CCC to target per-language
+	 * even if it wanted to; a write "for French" would just be the same
+	 * write "for every language", which is not what the caller asked for, so
+	 * `ccc_language_unsupported` is correct on the merits, not a gap.
+	 *
+	 * @return bool
+	 */
+	public function supports_language_home() {
+		return 'yoast' === $this->id;
+	}
+
+	/**
 	 * Read one homepage field ('title' or 'description') from the active
 	 * SEO plugin's own storage. '' for an adapter without homepage support
 	 * (caller must gate writes on supports_home() first).
 	 *
 	 * @param string $field 'title' or 'description'.
+	 * @param string $lang  Non-default Polylang language slug — reads that
+	 *                      language's own translated value (Yoast only;
+	 *                      caller must gate on supports_language_home()
+	 *                      first). '' reads the plain/default-language value.
 	 * @return string
 	 */
-	private function get_home_field( $field ) {
+	private function get_home_field( $field, $lang = '' ) {
+		if ( 'yoast' === $this->id && '' !== $lang ) {
+			// The registered "original" string IS the plain (default-
+			// language) stored value — Polylang re-registers it fresh from
+			// get_option() on every request (PLL_WPSEO::
+			// wpseo_translate_options(), hooked `wp_loaded`), so it is
+			// always this site's actual current default-language value, not
+			// a stale snapshot. pll_translate_string() looks up that exact
+			// string as a msgid in $lang's own string-translation table and,
+			// same as real gettext, returns the msgid itself (i.e. the
+			// default-language value) when nothing has been translated yet
+			// for $lang — verified against a real Yoast+Polylang install to
+			// be exactly what that language's homepage actually renders,
+			// not a guess (see SECURITY-NOTES.md's 26 Sept addendum).
+			$key      = ( 'title' === $field ) ? 'title-home-wpseo' : 'metadesc-home-wpseo';
+			$original = (string) \WPSEO_Options::get( $key, '' );
+			return function_exists( 'pll_translate_string' ) ? (string) pll_translate_string( $original, $lang ) : $original;
+		}
 		if ( 'yoast' === $this->id ) {
 			$key = ( 'title' === $field ) ? 'title-home-wpseo' : 'metadesc-home-wpseo';
 			return (string) \WPSEO_Options::get( $key, '' );
@@ -306,8 +357,43 @@ class CCC_Adapter {
 	 *
 	 * @param string $field 'title' or 'description'.
 	 * @param string $value New value.
+	 * @param string $lang  Non-default Polylang language slug — writes a
+	 *                      STRING TRANSLATION of the default-language value
+	 *                      for that language (Yoast only; caller must gate
+	 *                      on supports_language_home() first), never the
+	 *                      default-language value itself. '' writes the
+	 *                      plain/default-language value as before.
 	 */
-	private function set_home_field( $field, $value ) {
+	private function set_home_field( $field, $value, $lang = '' ) {
+		if ( 'yoast' === $this->id && '' !== $lang ) {
+			// Same real mechanism Polylang's own "Strings translation" admin
+			// screen uses to save an edited translation
+			// (src/settings/table-string.php: save_translations(), and
+			// PLL_Translate_Option::update_option(), which is how Yoast's
+			// OWN default-language save preserves every other language's
+			// translation) — not a public `@api` function, but the plugin's
+			// one real internal implementation of "set this string's
+			// translation for language X", used consistently in both of
+			// Polylang's own places that do this. Verified end-to-end
+			// against a real Yoast+Polylang install, across separate HTTP
+			// requests (write then a fresh request reads it back): import
+			// the language's current translations, add/replace the entry
+			// for the CURRENT default-language original string, export back.
+			if ( ! function_exists( 'PLL' ) || ! class_exists( 'PLL_MO' ) ) {
+				return; // Unreachable: caller already gated on supports_language_home() + a validated active language.
+			}
+			$language = PLL()->model->get_language( $lang );
+			if ( ! $language ) {
+				return; // Unreachable for the same reason.
+			}
+			$key      = ( 'title' === $field ) ? 'title-home-wpseo' : 'metadesc-home-wpseo';
+			$original = (string) \WPSEO_Options::get( $key, '' );
+			$mo       = new \PLL_MO();
+			$mo->import_from_db( $language );
+			$mo->add_entry( $mo->make_entry( $original, $value ) );
+			$mo->export_to_db( $language );
+			return;
+		}
 		if ( 'yoast' === $this->id ) {
 			$key = ( 'title' === $field ) ? 'title-home-wpseo' : 'metadesc-home-wpseo';
 			// WPSEO_Options::save_option() reads the full 'wpseo_titles'

@@ -14,6 +14,8 @@ tests/integration/.site-check/
 tests/integration/.site-woo/
 tests/integration/.site-ms/
 tests/integration/.site-cache/
+tests/integration/.site-pll/
+tests/integration/.site-pll-yoast/
 tests/integration/.dist/
 tests/integration/.server.log
 tests/integration/.server-woo.log

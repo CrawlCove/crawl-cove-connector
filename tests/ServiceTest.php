@@ -315,6 +315,133 @@ class ServiceTest extends TestCase {
 		$this->assertTrue( CCC_Service::can_edit_target( 7 ) );
 	}
 
+	// ── multilingual homepage (Polylang, lang alongside HOME_ID) ───
+
+	public function test_resolve_language_prefixed_homepage_when_polylang_active() {
+		cc_enable_polylang( array( 'en', 'fr' ), 'en' );
+		$lang = 'unset';
+		$this->assertSame( CCC_Service::HOME_ID, CCC_Service::resolve_url( 'https://example.com/fr/', $lang ) );
+		$this->assertSame( 'fr', $lang );
+	}
+
+	public function test_resolve_default_language_home_reports_no_lang() {
+		cc_enable_polylang( array( 'en', 'fr' ), 'en' );
+		$lang = 'unset';
+		$this->assertSame( CCC_Service::HOME_ID, CCC_Service::resolve_url( 'https://example.com/', $lang ) );
+		$this->assertSame( '', $lang );
+	}
+
+	public function test_resolve_language_home_unresolvable_without_polylang() {
+		// No cc_enable_polylang() call — pll_languages_list() stub returns [].
+		$err = CCC_Service::resolve_url( 'https://example.com/fr/' );
+		$this->assertSame( 'ccc_unresolvable', $err->get_error_code() );
+	}
+
+	public function test_resolve_language_home_not_matched_with_a_static_front_page() {
+		// Each language's static front page is its own real, distinct post —
+		// already resolved by url_to_postid(), nothing special to do; a
+		// "/fr/" that isn't a real post/term stays unresolvable, not HOME_ID.
+		cc_enable_polylang( array( 'en', 'fr' ), 'en' );
+		$GLOBALS['cc_options']['show_on_front'] = 'page';
+		$err = CCC_Service::resolve_url( 'https://example.com/fr/' );
+		$this->assertSame( 'ccc_unresolvable', $err->get_error_code() );
+	}
+
+	public function test_apply_writes_a_non_default_language_homepage_title_via_yoast() {
+		cc_enable_polylang( array( 'en', 'fr' ), 'en' );
+		$this->adapter->set_title( 0, 'English Home' );
+		$res = CCC_Service::apply(
+			array( array( 'post_id' => 0, 'lang' => 'fr', 'title' => 'Accueil Francais' ) ),
+			false, $this->adapter, 'bloo'
+		);
+		$this->assertTrue( $res[0]['ok'] );
+		$this->assertSame( 'Accueil Francais', $this->adapter->get_title( 0, 'fr' ) );
+		// The default-language value is untouched by a language-specific write.
+		$this->assertSame( 'English Home', $this->adapter->get_title( 0 ) );
+	}
+
+	public function test_apply_rejects_lang_for_an_adapter_without_language_home_support() {
+		cc_enable_polylang( array( 'en', 'fr' ), 'en' );
+		$rankmath = new CCC_Adapter( 'rankmath', 'rank_math_title', 'rank_math_description' );
+		$res      = CCC_Service::apply(
+			array( array( 'post_id' => 0, 'lang' => 'fr', 'title' => 'X' ) ),
+			false, $rankmath, 'bloo'
+		);
+		$this->assertFalse( $res[0]['ok'] );
+		$this->assertSame( 'ccc_language_unsupported', $res[0]['error'] );
+	}
+
+	public function test_apply_rejects_lang_on_a_non_homepage_target() {
+		cc_enable_polylang( array( 'en', 'fr' ), 'en' );
+		$res = CCC_Service::apply(
+			array( array( 'post_id' => 7, 'lang' => 'fr', 'title' => 'X' ) ),
+			false, $this->adapter, 'bloo'
+		);
+		$this->assertFalse( $res[0]['ok'] );
+		$this->assertSame( 'ccc_language_requires_home', $res[0]['error'] );
+	}
+
+	public function test_apply_rejects_lang_without_a_multilingual_plugin() {
+		$res = CCC_Service::apply(
+			array( array( 'post_id' => 0, 'lang' => 'fr', 'title' => 'X' ) ),
+			false, $this->adapter, 'bloo'
+		);
+		$this->assertFalse( $res[0]['ok'] );
+		$this->assertSame( 'ccc_multilingual_required', $res[0]['error'] );
+	}
+
+	public function test_apply_rejects_an_inactive_language_code() {
+		cc_enable_polylang( array( 'en', 'fr' ), 'en' );
+		$res = CCC_Service::apply(
+			array( array( 'post_id' => 0, 'lang' => 'de', 'title' => 'X' ) ),
+			false, $this->adapter, 'bloo'
+		);
+		$this->assertFalse( $res[0]['ok'] );
+		$this->assertSame( 'ccc_no_such_language', $res[0]['error'] );
+	}
+
+	public function test_apply_treats_the_default_language_code_as_plain_homepage() {
+		// lang === the site's own default language is not an error and not
+		// special-cased as a translation — it IS the plain homepage target.
+		cc_enable_polylang( array( 'en', 'fr' ), 'en' );
+		$res = CCC_Service::apply(
+			array( array( 'post_id' => 0, 'lang' => 'en', 'title' => 'Plain Home' ) ),
+			false, $this->adapter, 'bloo'
+		);
+		$this->assertTrue( $res[0]['ok'] );
+		$this->assertSame( 'Plain Home', $this->adapter->get_title( 0 ) );
+	}
+
+	public function test_language_homepage_change_is_revertable() {
+		cc_enable_polylang( array( 'en', 'fr' ), 'en' );
+		$this->adapter->set_title( 0, 'Old French Title', 'fr' );
+		$res = CCC_Service::apply(
+			array( array( 'post_id' => 0, 'lang' => 'fr', 'title' => 'New French Title' ) ),
+			false, $this->adapter, 'bloo'
+		);
+		$done = CCC_Change_Log::revert( $res[0]['applied']['title']['change_id'], $this->adapter );
+		$this->assertTrue( $done );
+		$this->assertSame( 'Old French Title', $this->adapter->get_title( 0, 'fr' ) );
+	}
+
+	public function test_describe_language_homepage_target() {
+		cc_enable_polylang( array( 'en', 'fr' ), 'en' );
+		$this->adapter->set_title( 0, 'Titre', 'fr' );
+		$d = CCC_Service::describe( CCC_Service::HOME_ID, $this->adapter, 'fr' );
+		$this->assertSame( 0, $d['post_id'] );
+		$this->assertSame( 'fr', $d['lang'] );
+		$this->assertSame( 'https://example.com/fr/', $d['permalink'] );
+		$this->assertTrue( $d['editable'] );
+		$this->assertSame( 'Titre', $d['current']['title'] );
+	}
+
+	public function test_describe_language_homepage_not_editable_for_rankmath() {
+		cc_enable_polylang( array( 'en', 'fr' ), 'en' );
+		$rankmath = new CCC_Adapter( 'rankmath', 'rank_math_title', 'rank_math_description' );
+		$d        = CCC_Service::describe( CCC_Service::HOME_ID, $rankmath, 'fr' );
+		$this->assertFalse( $d['editable'] );
+	}
+
 	// ── taxonomy terms (negative post_id sentinel) ─────────────────
 
 	public function test_resolve_falls_back_to_term_resolution_after_post_lookup_fails() {

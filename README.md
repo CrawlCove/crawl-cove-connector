@@ -71,6 +71,9 @@ back to `/apply` or `/revert` to target it.
   title instead of clearing it, or clear it from Rank Math's own settings page.
 - Sending `post_id: 0` on a site that **does** have a static front page returns
   `ccc_no_homepage_target` — pass that page's own post id instead.
+- On a Polylang site, `post_id: 0` can also carry an optional `lang` field
+  to target a non-default language's own homepage — see
+  [Multilingual sites](#multilingual-sites-polylang-wpml-etc) below.
 
 ### The taxonomy term target (a negative `post_id`)
 
@@ -133,26 +136,48 @@ not a plugin limitation.
 Ordinary translated content works with zero special handling — a post's
 translation is its own real post, with its own `post_id` and its own SEO
 postmeta, so it resolves, applies and reverts exactly like any other post.
-The same is true for a translated category/tag term.
+The same is true for a translated category/tag term (each language's term
+is its own real `term_id`, so it already gets its own SEO title/description
+via the negative-`post_id` target above).
 
-**The homepage and taxonomy archives are more limited.** A non-default
-language's "your latest posts" homepage (for example `/fr/` under
-Polylang's directory URL mode) currently resolves as `ccc_unresolvable` —
-it is correctly *not* mistaken for anything else, but it isn't yet a target
-this plugin can push a fix to either. (An earlier version silently
-misresolved it to the wrong internal target instead of failing cleanly —
-fixed in 0.8.1, see the changelog.) A static front page in another
-language is unaffected, since that's just an ordinary page with its own
-`post_id`.
+**The "your latest posts" homepage is the one target with no post or term
+of its own to hold a per-language value**, so it needs a small REST
+contract addition: an optional `lang` field, sent alongside `post_id: 0`.
 
-If you use Yoast SEO's homepage title/description together with Polylang,
-pushing a fix to the homepage target only ever affects your **default**
-language's title — verified against a real install that this does not
-corrupt or overwrite a non-default language's already-translated homepage
-title (Polylang's own string-translation system keeps it intact). Rank
-Math has no Polylang integration of its own, so its homepage title/
-description is one value shared across every language regardless of this
-plugin.
+- `/resolve` reports a non-default language's homepage URL (for example
+  `/fr/` under Polylang's directory URL mode) as `post_id: 0` with
+  `lang: "fr"` — the default language's own homepage still reports
+  `lang: ""`, exactly as before this field existed. (An earlier version
+  either misresolved `/fr/` to the wrong internal target, or — after that
+  was fixed — reported it as `ccc_unresolvable`; both are now `post_id: 0`,
+  see the changelog.) A static front page in another language is
+  unaffected either way, since that's just an ordinary page with its own
+  `post_id`.
+- To push a fix, send that same `lang` back: `{"post_id": 0, "lang": "fr",
+  "title": "..."}` on `/apply`/`/revert`. Omitting `lang` (or sending your
+  site's own default language code) targets the plain/default-language
+  homepage exactly as it always has — this is fully additive, nothing
+  about the existing `post_id: 0` contract changed.
+- **Supported adapters: Yoast SEO only.** Verified against Polylang's own
+  source: it ships a dedicated compatibility module *only* for Yoast
+  (`integrations/wpseo/`, registering `title-home-wpseo`/
+  `metadesc-home-wpseo` with Polylang's own string-translation system) —
+  there is no such module for Rank Math, SEOPress or AIOSEO, because none
+  of them has a per-language slot to put a value into: their homepage
+  title/description is one value shared across every language, full stop.
+  Sending `lang` to any of those three returns `ccc_language_unsupported`
+  — reported, not silently written as a site-wide change nobody asked for.
+- `lang` on any target other than `post_id: 0` returns
+  `ccc_language_requires_home`. A `lang` that isn't one of the site's
+  active Polylang language codes returns `ccc_no_such_language`; `lang`
+  sent with no supported multilingual plugin active returns
+  `ccc_multilingual_required`.
+- Pushing a fix to the **default**-language homepage target (`lang`
+  omitted) only ever affects your default language's title — verified
+  against a real install that this does not corrupt or overwrite a
+  non-default language's already-translated homepage title (Polylang's
+  own string-translation system reattaches it to the new original string,
+  the same mechanism `lang`-qualified writes use directly).
 
 ### Caching plugins
 

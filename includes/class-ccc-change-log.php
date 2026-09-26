@@ -53,15 +53,19 @@ class CCC_Change_Log {
 	 * @param string $from    Previous stored value ('' = was unset).
 	 * @param string $to      New stored value ('' = override removed).
 	 * @param string $source  Who applied it (REST user login).
+	 * @param string $lang    Non-default Polylang language slug, HOME_ID
+	 *                        changes only (see CCC_Adapter::
+	 *                        supports_language_home()); '' otherwise.
 	 * @return array The stored entry, including its id.
 	 */
-	public static function record( $post_id, $field, $from, $to, $source ) {
+	public static function record( $post_id, $field, $from, $to, $source, $lang = '' ) {
 		$id = (int) get_option( self::SEQ_OPTION, 0 ) + 1;
 		update_option( self::SEQ_OPTION, $id, false );
 
 		$entry = array(
 			'id'       => $id,
 			'post_id'  => (int) $post_id,
+			'lang'     => $lang,
 			'field'    => $field,
 			'from'     => $from,
 			'to'       => $to,
@@ -108,10 +112,15 @@ class CCC_Change_Log {
 			}
 		}
 
+		// isset(), not array_key_exists(): entries logged before the
+		// per-language homepage feature shipped have no 'lang' key at all,
+		// and must revert exactly as they always did (the plain/default-
+		// language target), not error or misbehave.
+		$lang = isset( $entry['lang'] ) ? $entry['lang'] : '';
 		if ( 'title' === $entry['field'] ) {
-			$adapter->set_title( $entry['post_id'], $entry['from'] );
+			$adapter->set_title( $entry['post_id'], $entry['from'], $lang );
 		} else {
-			$adapter->set_description( $entry['post_id'], $entry['from'] );
+			$adapter->set_description( $entry['post_id'], $entry['from'], $lang );
 		}
 		// Same cache/indexable invalidation apply() runs after a real write —
 		// without this a revert silently leaves stale cached HTML (or, for a

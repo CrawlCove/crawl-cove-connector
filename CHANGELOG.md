@@ -1,5 +1,50 @@
 # Changelog
 
+## 0.9.0 — 2026-09-26
+
+- Real per-language "your latest posts" homepage title/description support
+  for multilingual sites, closing the feature gap 0.8.1's safety fix
+  deliberately left open (see BACKLOG.md). `/resolve` now reports a
+  non-default Polylang language's homepage URL (e.g. `/fr/` under
+  directory URL mode) as `post_id: 0` with a new `lang: "fr"` field,
+  instead of `ccc_unresolvable`; send that same `lang` back on `/apply`/
+  `/revert` to push a fix to it. Fully additive — omitting `lang` (or
+  sending the site's own default language code, which is treated
+  identically) targets the plain/default-language homepage exactly as the
+  existing `post_id: 0` contract always has.
+- **Yoast SEO only.** Verified against Polylang's own source (not
+  guessed): its `src/integrations/` directory ships a dedicated
+  compatibility module *only* for Yoast (`wpseo/wpseo.php`, registering
+  `title-home-wpseo`/`metadesc-home-wpseo` with Polylang's own
+  string-translation system, `PLL_Translate_Option` → `PLL_MO`) — there is
+  no equivalent module for Rank Math, SEOPress or AIOSEO, because none of
+  them has a per-language slot to write into at all: each one's homepage
+  title/description is one value shared across every language, full stop.
+  A `lang`-qualified change sent to any of those three now returns
+  `ccc_language_unsupported` — reported, not silently applied as an
+  unwanted site-wide change.
+- The write itself uses the exact mechanism Polylang's own admin "Strings
+  translation" screen uses to save a translation (`PLL_MO::
+  import_from_db()`/`add_entry()`/`export_to_db()`) — not a documented
+  `@api` function (there isn't one for writing), but the plugin's one real
+  internal implementation of "set this string's translation for language
+  X", the same one `PLL_Translate_Option` itself relies on for the
+  default-language save path already shipped in 0.4.0. Verified end-to-end
+  against a real Yoast + Polylang install, across separate HTTP requests
+  (write via one REST call, read back via a later one): a French-only
+  write leaves the English original, and any OTHER language's own
+  translation, untouched; reverting restores Yoast's real fallback
+  behaviour (an untranslated language falls back to the default-language
+  value, exactly like real gettext, never to blank); a subsequent
+  default-language title change correctly reattaches the existing French
+  translation to the new original string (Polylang's own behaviour,
+  unchanged by this feature). New `tests/integration/
+  polylang-yoast-home-checks.sh` (13/13); `tests/integration/
+  polylang-checks.sh` updated (an adapter-independent `/resolve` now
+  reports `lang` for ANY adapter, with `editable` correctly gating the
+  ones that can't act on it). 13 new unit tests (99 total), full gate
+  green.
+
 ## 0.8.1 — 2026-09-26
 
 - Security/correctness fix: `CCC_Term_Resolver::resolve_pretty_permalink()`

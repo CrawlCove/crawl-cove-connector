@@ -4,7 +4,7 @@ Tags: seo, yoast, rank math, seopress, aioseo
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.8.1
+Stable tag: 0.9.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -48,6 +48,9 @@ Every write is capability-checked, validated, length-capped and logged with its 
 1. Tools → Crawl Cove: connection status, the detected SEO plugin, setup steps, and the change log with one-click revert.
 
 == Changelog ==
+
+= 0.9.0 =
+* Real per-language homepage title/description support for multilingual sites (Polylang): the "your latest posts" homepage now resolves a non-default language's own URL (e.g. `/fr/`) to a target you can push a fix to, instead of `ccc_unresolvable`. New optional `lang` field on `/resolve`, `/apply` and `/revert`, additive to the existing `post_id: 0` contract — omitting it targets the plain/default-language homepage exactly as before. Yoast SEO only: verified against Polylang's own source that it is the only supported SEO plugin with a per-language homepage storage mechanism at all (its own Yoast-specific compatibility module); Rank Math, SEOPress and AIOSEO now report `ccc_language_unsupported` for a language-qualified homepage change instead of staying silent about it.
 
 = 0.8.1 =
 * Security/correctness fix: a taxonomy archive URL under a language-prefixed permalink (e.g. a multilingual plugin's `/fr/category/news/`, or in the worst case a bare `/fr/` itself) could resolve to the WRONG term — specifically, a rewrite rule belonging to an internal, non-public taxonomy that happens to share the same URL shape. Found and verified against a real Polylang install: its own internal "language" taxonomy (used for its language switcher, not real content) matched a French "your latest posts" homepage URL, silently writing an SEO fix to that internal term instead of the homepage — reported as a successful apply while the real page never changed. Both URL resolution and direct `post_id`-based apply/revert now require the matched taxonomy to be public, matching WordPress's own definition of "a real, browsable archive."

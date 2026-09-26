@@ -147,7 +147,7 @@ class CCC_Rest {
 		$out = array();
 		foreach ( $urls as $url ) {
 			$url     = is_string( $url ) ? esc_url_raw( $url ) : '';
-			$post_id = CCC_Service::resolve_url( $url );
+			$post_id = CCC_Service::resolve_url( $url, $lang );
 			if ( is_wp_error( $post_id ) ) {
 				$out[] = array(
 					'url'     => $url,
@@ -162,7 +162,7 @@ class CCC_Rest {
 					'url' => $url,
 					'ok'  => true,
 				),
-				CCC_Service::describe( $post_id, $adapter )
+				CCC_Service::describe( $post_id, $adapter, $lang )
 			);
 		}
 		return rest_ensure_response( $out );
