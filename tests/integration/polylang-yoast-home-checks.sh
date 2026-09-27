@@ -191,6 +191,48 @@ check "apply: default-language title write ok" 200 "$RESP_HTTP" '.[0].ok' 'true'
 req POST /resolve "{\"urls\":[\"$URL/fr/\"]}"
 check "resolve: French translation reattached to the new English original (Polylang's own PLL_Translate_Option behaviour, not CCC's)" 200 "$RESP_HTTP" '.[0].current.title' 'Nouveau Titre' "$RESP_BODY"
 
+echo "-- lang field fuzzing (never added to security-checks.sh's matrix when lang shipped in v0.9.0) --"
+req POST /apply "{\"changes\":[{\"post_id\":0,\"lang\":123,\"title\":\"x\"}]}"
+check "apply: numeric lang -> ccc_bad_value, no crash" 200 "$RESP_HTTP" '.[0].error' 'ccc_bad_value' "$RESP_BODY"
+
+req POST /apply "{\"changes\":[{\"post_id\":0,\"lang\":[\"fr\"],\"title\":\"x\"}]}"
+check "apply: array lang -> ccc_bad_value, no crash" 200 "$RESP_HTTP" '.[0].error' 'ccc_bad_value' "$RESP_BODY"
+
+req POST /apply "{\"changes\":[{\"post_id\":0,\"lang\":{\"a\":1},\"title\":\"x\"}]}"
+check "apply: object lang -> ccc_bad_value, no crash" 200 "$RESP_HTTP" '.[0].error' 'ccc_bad_value' "$RESP_BODY"
+
+req POST /apply "{\"changes\":[{\"post_id\":0,\"lang\":true,\"title\":\"x\"}]}"
+check "apply: boolean lang -> ccc_bad_value, no crash" 200 "$RESP_HTTP" '.[0].error' 'ccc_bad_value' "$RESP_BODY"
+
+req POST /apply "{\"changes\":[{\"post_id\":0,\"lang\":\"FR\",\"title\":\"x\"}]}"
+check "apply: case-mismatched lang ('FR' vs real 'fr') is not silently accepted -> ccc_no_such_language" 200 "$RESP_HTTP" '.[0].error' 'ccc_no_such_language' "$RESP_BODY"
+
+req POST /apply "{\"changes\":[{\"post_id\":0,\"lang\":\" fr\",\"title\":\"x\"}]}"
+check "apply: whitespace-padded lang is not silently trimmed-and-accepted -> ccc_no_such_language" 200 "$RESP_HTTP" '.[0].error' 'ccc_no_such_language' "$RESP_BODY"
+
+req POST /apply "{\"changes\":[{\"post_id\":0,\"lang\":\"'; DROP TABLE wp_options; --\",\"title\":\"x\"}]}"
+check "apply: SQL-injection-shaped lang -> ccc_no_such_language, no crash" 200 "$RESP_HTTP" '.[0].error' 'ccc_no_such_language' "$RESP_BODY"
+
+LANG_10K="$(python3 -c "print('f'*10000)")"
+req POST /apply "{\"changes\":[{\"post_id\":0,\"lang\":\"$LANG_10K\",\"title\":\"x\"}]}"
+check "apply: 10k-char lang doesn't crash/timeout, and is rejected as ccc_no_such_language" 200 "$RESP_HTTP" '.[0].error' 'ccc_no_such_language' "$RESP_BODY"
+
+req POST /apply "{\"changes\":[{\"post_id\":0,\"lang\":\"fr\\u0000\",\"title\":\"x\"}]}"
+check "apply: null-byte-suffixed lang doesn't crash, and is rejected as ccc_no_such_language, not treated as plain 'fr'" 200 "$RESP_HTTP" '.[0].error' 'ccc_no_such_language' "$RESP_BODY"
+
+echo "-- a valid lang combined with an injection-shaped title exercises the OTHER write mechanism (PLL_MO), not just update_option() --"
+req POST /apply "{\"changes\":[{\"post_id\":0,\"lang\":\"fr\",\"title\":\"<script>alert(1)</script>\"}]}"
+check "apply: script-tag title via the per-language (PLL_MO) path is accepted at HTTP level (sanitized, not blocked)" 200 "$RESP_HTTP" '.[0].ok' 'true' "$RESP_BODY"
+STORED_HAS_SCRIPT="$(echo "$RESP_BODY" | jq -r '.[0].applied.title.to' | grep -c '<script' || true)"
+if [[ "$STORED_HAS_SCRIPT" == "0" ]]; then
+  PASS=$((PASS+1)); echo "  ok   apply: sanitize_text_field stripped the <script> tag before the PLL_MO write too"
+else
+  FAIL=$((FAIL+1)); echo "  FAIL apply: raw <script> tag reached the PLL_MO-backed storage — stored value: $(echo "$RESP_BODY" | jq -r '.[0].applied.title.to')"
+fi
+FR_CHANGE_ID="$(echo "$RESP_BODY" | jq -r '.[0].applied.title.change_id')"
+req POST /revert "{\"change_id\":$FR_CHANGE_ID}"
+check "revert: cleans up the fuzzed French title" 200 "$RESP_HTTP" '.ok' 'true' "$RESP_BODY"
+
 echo "-- an adapter with no Polylang integration says so explicitly --"
 "${WPCLI[@]}" plugin deactivate wordpress-seo --path="$SITE" --quiet
 unzip -q "$CACHE/rankmath.zip" -d "$SITE/wp-content/plugins" 2>/dev/null || true
