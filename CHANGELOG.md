@@ -1,5 +1,57 @@
 # Changelog
 
+## 0.10.0 — 2026-09-27
+
+- **Fix: TranslatePress compatibility.** On a site running TranslatePress
+  (the other major free multilingual plugin besides Polylang), every URL
+  under a non-default language's prefix — `/fr/some-post/`, `/fr/category/
+  news/`, the `/fr/` homepage, all of it — was `ccc_unresolvable`. This
+  wasn't a narrow edge case like Polylang's homepage gap; it was every
+  translated URL on the whole site. Root cause, verified against
+  TranslatePress's own source rather than assumed: it manages its
+  language-prefixed URLs (`includes/class-url-converter.php`) with plain
+  string manipulation, not a WordPress rewrite rule — there is no
+  `add_rewrite_rule()` call anywhere in the plugin. `url_to_postid()` and
+  `CCC_Term_Resolver`'s own rewrite-rule matching both work by matching
+  against WordPress's *compiled rewrite rules*, so a prefix that isn't one
+  of those rules is invisible to them, full stop.
+- Architecturally, TranslatePress turned out to be the OPPOSITE problem
+  shape from Polylang: Polylang creates genuinely separate content (a real
+  post_id per translation) plus a real (if non-public) taxonomy whose
+  rewrite rule could collide with CCC's own resolution — see 0.8.1.
+  TranslatePress has no separate content or SEO storage per language at
+  all; it translates the SAME post's SAME Yoast/Rank Math postmeta at
+  render time via its own gettext-style string dictionary, keyed on the
+  literal original string text. That makes the fix simpler than Polylang's:
+  `CCC_Service::strip_translatepress_language_prefix()` recognises and
+  strips a configured non-default language's URL slug (read from
+  TranslatePress's own `trp_settings` option — it ships no public `@api`
+  equivalent of Polylang's `pll_home_url()`) before any resolution runs, so
+  every existing post/term/homepage path handles the stripped URL exactly
+  like its default-language counterpart. No REST contract change: `lang`
+  stays empty throughout, correctly — there is nothing per-language here
+  for it to mean.
+- Verified end-to-end against a real WordPress + Yoast + TranslatePress
+  install, not source-reading alone (`tests/integration/
+  translatepress-checks.sh`, 9/9): a post URL and its `/fr/`-prefixed
+  counterpart resolve to the same post_id; the homepage and its `/fr/`
+  counterpart both resolve to `HOME_ID`; a CCC title write is read back
+  identically from either URL. Confirmed the harness genuinely catches the
+  regression by reverting the fix locally first (5/9 failed, as predicted).
+- One consequence documented, not fixed, because it isn't a CCC bug: since
+  TranslatePress's translation lookup is keyed on the literal original
+  string, ANY edit to that string — from CCC or from a site owner's own
+  hand-edit in Yoast's metabox, no difference — orphans whatever
+  translation already existed until a human re-translates it in
+  TranslatePress's own editor. Noted in SECURITY-NOTES.md so it isn't
+  rediscovered as "a bug" later.
+- Security: the `lang` field shipped in 0.9.0 was never added to
+  `security-checks.sh`'s type/injection/unicode/null-byte/oversized-string
+  fuzzing matrix every other field gets. Added 12 checks to
+  `polylang-yoast-home-checks.sh` (the one harness with Polylang+Yoast
+  live) — no bug found, `is_string()` + a strict `in_array()` whitelist
+  already rejected everything; now a permanent regression check.
+
 ## 0.9.0 — 2026-09-26
 
 - Real per-language "your latest posts" homepage title/description support

@@ -59,6 +59,22 @@ class CCC_Service {
 			);
 		}
 
+		// TranslatePress (unlike Polylang) has no separate post/page per
+		// language and no per-language SEO storage — it translates the SAME
+		// underlying content's rendered strings at output time, keyed by a
+		// URL path prefix it manages itself with plain string manipulation,
+		// not a WP rewrite rule (verified against its own source: no
+		// add_rewrite_rule() call anywhere in the plugin). url_to_postid()
+		// and this class's own rewrite-rule matching have no way to know
+		// about that prefix, so a non-default-language URL would otherwise
+		// be ccc_unresolvable even though the exact same post/page/term/
+		// homepage is one strip away. Stripping it here, before any
+		// resolution runs, means every path below (post, term, homepage)
+		// handles a TranslatePress URL identically to its default-language
+		// counterpart with no further special-casing — and $lang stays ''
+		// throughout, correctly: there is nothing per-language to report.
+		$url = self::strip_translatepress_language_prefix( $url );
+
 		if ( self::is_home_url( $url ) ) {
 			return self::HOME_ID;
 		}
@@ -122,6 +138,57 @@ class CCC_Service {
 			__( 'URL does not map to a post, page or taxonomy archive.', 'crawl-cove-connector' ),
 			array( 'status' => 404 )
 		);
+	}
+
+	/**
+	 * Strip a TranslatePress non-default-language URL slug (e.g. "/fr/" in
+	 * "/fr/hello-world/") from $url, so every resolution path below sees the
+	 * same URL it would for the default language. '' active-plugin check and
+	 * TranslatePress's own `trp_settings` option (`default-language`,
+	 * `url-slugs`) are read directly rather than guessed — TranslatePress
+	 * ships no public `@api` function for this (unlike Polylang's
+	 * `pll_home_url()`), confirmed against its own source.
+	 *
+	 * Directory URL mode only (TranslatePress's only mode in the free
+	 * plugin; subdomain/separate-domain per-language URLs are a paid add-on
+	 * this method does not attempt to handle — a subdomain URL simply fails
+	 * the site-host check earlier in resolve_url() and is reported
+	 * ccc_wrong_site, same as any other URL for a different host, not
+	 * silently mismatched).
+	 *
+	 * @param string $url URL already confirmed to be on this site.
+	 * @return string $url with a recognized language slug segment removed, or $url unchanged.
+	 */
+	private static function strip_translatepress_language_prefix( $url ) {
+		if ( ! class_exists( 'TRP_Translate_Press' ) ) {
+			return $url;
+		}
+		$settings = get_option( 'trp_settings' );
+		if ( empty( $settings['url-slugs'] ) || ! is_array( $settings['url-slugs'] ) ) {
+			return $url;
+		}
+		$default_lang = isset( $settings['default-language'] ) ? $settings['default-language'] : '';
+		$home_path    = untrailingslashit( (string) wp_parse_url( home_url(), PHP_URL_PATH ) );
+		$url_path     = (string) wp_parse_url( $url, PHP_URL_PATH );
+		if ( 0 !== strpos( $url_path, $home_path ) ) {
+			return $url; // Not even under this site's own path — resolve_url()'s host check runs before this, but the path itself could still differ.
+		}
+		$relative = trim( substr( $url_path, strlen( $home_path ) ), '/' );
+		if ( '' === $relative ) {
+			return $url; // Bare homepage, no language segment present to strip.
+		}
+		$segments = explode( '/', $relative, 2 );
+		$first    = $segments[0];
+		foreach ( $settings['url-slugs'] as $lang_code => $slug ) {
+			if ( $lang_code === $default_lang || '' === $slug || $slug !== $first ) {
+				continue;
+			}
+			$rest    = isset( $segments[1] ) ? $segments[1] : '';
+			$new_url = home_url( '/' . $rest );
+			$query   = (string) wp_parse_url( $url, PHP_URL_QUERY );
+			return '' !== $query ? $new_url . '?' . $query : $new_url;
+		}
+		return $url;
 	}
 
 	/**

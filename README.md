@@ -179,6 +179,33 @@ contract addition: an optional `lang` field, sent alongside `post_id: 0`.
   own string-translation system reattaches it to the new original string,
   the same mechanism `lang`-qualified writes use directly).
 
+**TranslatePress is architecturally different from Polylang/WPML, and needs
+no `lang` field at all.** It has no separate post or SEO storage per
+language — it translates the SAME post's SAME Yoast/Rank Math/SEOPress/
+AIOSEO postmeta at render time, by swapping the rendered *string* (its own
+gettext-style dictionary, keyed on the literal original text). There is
+nothing per-language for `lang` to mean here, so it's simply never sent or
+returned for a TranslatePress site.
+
+- A URL under TranslatePress's language prefix (e.g. `/fr/some-post/`, or
+  the `/fr/` homepage) resolves to the exact same target — the same
+  `post_id`, or `HOME_ID` — as its default-language counterpart, verified
+  end-to-end against a real install. Confirmed against TranslatePress's own
+  source that this is safe rather than assumed: it manages the language
+  prefix with plain string manipulation (`includes/class-url-converter.php`),
+  not a WordPress rewrite rule — there is no `add_rewrite_rule()` call
+  anywhere in the plugin — so there is no Polylang-style risk of colliding
+  with a real (or internal) taxonomy's own rewrite rule.
+- Before this was handled, EVERY URL under a non-default language's prefix
+  was `ccc_unresolvable` — not a homepage-only gap, every translated post,
+  page, and term archive on the whole site. See the 0.10.0 changelog entry.
+- One consequence of TranslatePress's design, not a CCC bug: because its
+  translation lookup is keyed on the literal original string, any edit to
+  that string — from this plugin, or from a site owner's own hand-edit in
+  the SEO plugin's metabox, no difference — orphans whatever translation
+  already existed for the old string until a human re-translates it in
+  TranslatePress's own editor.
+
 ### Caching plugins
 
 Every applied or reverted change tells WordPress (and, in turn, most page

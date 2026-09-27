@@ -41,7 +41,32 @@ function cc_enable_polylang( $languages, $default_lang ) {
 	$GLOBALS['cc_pll_languages']    = $languages;
 	$GLOBALS['cc_pll_default_lang'] = $default_lang;
 }
+
+/**
+ * Test helper: activate the TranslatePress stub with the given default
+ * language and non-default-language => URL-slug map — mirrors saving
+ * `trp_settings` via `TRP_Settings::sanitize_settings()` on a real install.
+ * Leaving this uncalled (the cc_reset_wp() default, no `trp_settings`
+ * option) means CCC_Service::strip_translatepress_language_prefix()
+ * returns every URL unchanged, same as a real site with TranslatePress not
+ * installed or not yet configured.
+ */
+function cc_enable_translatepress( $default_lang, $url_slugs ) {
+	$GLOBALS['cc_options']['trp_settings'] = array(
+		'default-language' => $default_lang,
+		'url-slugs'         => $url_slugs,
+	);
+}
 cc_reset_wp();
+
+// Real TranslatePress always defines this class when active; CCC only ever
+// calls class_exists() on it, never instantiates it, so an empty stub is
+// enough. Defined unconditionally (unlike the pll_* function stubs, which
+// gate Polylang-active behaviour via their own globals) because the
+// actually-meaningful gate is the `trp_settings` option above, not the
+// class's mere existence — matching a real site, where TranslatePress being
+// installed but never configured behaves the same as not installed at all.
+class TRP_Translate_Press {}
 
 class WP_Error {
 	private $code;

@@ -442,6 +442,50 @@ class ServiceTest extends TestCase {
 		$this->assertFalse( $d['editable'] );
 	}
 
+	// ── TranslatePress URL resolution (no separate content/storage per
+	//    language, unlike Polylang — a language-prefixed URL just needs its
+	//    prefix stripped before ordinary resolution runs; no `lang` field
+	//    involved at all) ────────────────────────────────────────────
+
+	public function test_resolve_strips_translatepress_language_prefix_from_a_post_url() {
+		cc_enable_translatepress( 'en_US', array( 'fr_FR' => 'fr' ) );
+		cc_add_post( 9, 'https://example.com/?p=5' );
+		$this->assertSame( 9, CCC_Service::resolve_url( 'https://example.com/fr/?p=5' ) );
+	}
+
+	public function test_resolve_translatepress_prefixed_homepage_is_home_id_with_no_lang() {
+		cc_enable_translatepress( 'en_US', array( 'fr_FR' => 'fr' ) );
+		$lang = 'unset';
+		$this->assertSame( CCC_Service::HOME_ID, CCC_Service::resolve_url( 'https://example.com/fr/', $lang ) );
+		// Unlike Polylang: TranslatePress has no per-language SEO storage, so
+		// there is nothing for $lang to report — it stays '' even for a
+		// non-default-language URL, correctly.
+		$this->assertSame( '', $lang );
+	}
+
+	public function test_resolve_translatepress_default_language_url_is_unaffected() {
+		cc_enable_translatepress( 'en_US', array( 'fr_FR' => 'fr' ) );
+		cc_add_post( 9, 'https://example.com/?p=5' );
+		$this->assertSame( 9, CCC_Service::resolve_url( 'https://example.com/?p=5' ) );
+	}
+
+	public function test_resolve_translatepress_prefix_ignored_without_configuration() {
+		// No cc_enable_translatepress() call — no `trp_settings` option, same
+		// as TranslatePress not installed or never configured. A "/fr/"
+		// segment is then just an ordinary (unresolvable) path, not stripped.
+		$err = CCC_Service::resolve_url( 'https://example.com/fr/?p=5' );
+		$this->assertSame( 'ccc_unresolvable', $err->get_error_code() );
+	}
+
+	public function test_resolve_translatepress_unrecognized_prefix_is_left_alone() {
+		cc_enable_translatepress( 'en_US', array( 'fr_FR' => 'fr' ) );
+		cc_add_post( 9, 'https://example.com/?p=5' );
+		// "/de/" isn't a configured language slug — must not be stripped as
+		// if it were, which would wrongly resolve a different, unintended URL.
+		$err = CCC_Service::resolve_url( 'https://example.com/de/?p=5' );
+		$this->assertSame( 'ccc_unresolvable', $err->get_error_code() );
+	}
+
 	// ── taxonomy terms (negative post_id sentinel) ─────────────────
 
 	public function test_resolve_falls_back_to_term_resolution_after_post_lookup_fails() {

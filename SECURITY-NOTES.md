@@ -365,6 +365,73 @@ authentication model. Full write-up (design rationale, REST contract,
 adapter-support matrix) in README.md's "Multilingual sites" section and
 CHANGELOG.md's 0.9.0 entry.
 
+## Addendum — 27 Sept 2026 (TranslatePress URL resolution — a real bug, now fixed, v0.10.0)
+
+Researched whether TranslatePress (the other major free multilingual
+plugin, alongside Polylang) needed the same kind of safety/feature work as
+Polylang got in the two addenda above — not assumed either way, verified
+against its own downloaded source and then against a real install.
+
+- **Architecturally the opposite problem from Polylang.** Polylang creates
+  genuinely separate content (a real `post_id` per translation) plus a real
+  taxonomy whose rewrite rule once collided with CCC's own resolution (see
+  the 26 Sept addendum above). TranslatePress has no separate post or SEO
+  storage per language at all — it translates the SAME post's SAME Yoast/
+  Rank Math/SEOPress/AIOSEO postmeta at render time, by swapping the
+  rendered *string* via its own gettext-style dictionary tables
+  (`includes/queries/class-gettext-table-creation.php`), keyed on the
+  literal original string text.
+- **Real bug found, not a homepage-only edge case.** Confirmed against
+  TranslatePress's own source that it manages its language-prefixed URLs
+  (e.g. `/fr/some-post/`) with plain string manipulation
+  (`includes/class-url-converter.php`) — there is no `add_rewrite_rule()`
+  call anywhere in the plugin. `url_to_postid()` and `CCC_Term_Resolver`'s
+  own matching both work by matching WordPress's *compiled rewrite rules*,
+  so a prefix that was never registered as one is invisible to them. Proved
+  against a real WordPress + Yoast + TranslatePress install
+  (`tests/integration/translatepress-checks.sh`) before assuming this from
+  source alone: EVERY URL under the non-default language's prefix —
+  ordinary posts, the homepage, term archives — was `ccc_unresolvable`.
+  For a plugin whose whole point is "crawl a URL, push a fix, verify it
+  went live," that's a real coverage gap on a very popular free plugin, not
+  a narrow one.
+- **Fix is simpler than Polylang's**, because there's no separate content to
+  target: `CCC_Service::strip_translatepress_language_prefix()` reads
+  TranslatePress's own `trp_settings` option (`default-language`,
+  `url-slugs` — it ships no public `@api` equivalent of Polylang's
+  `pll_home_url()`) and strips a recognised non-default language's slug
+  from the URL *before* any resolution logic runs. Every existing post/
+  term/homepage path then handles the stripped URL exactly like its
+  default-language counterpart — no new REST field, `lang` stays `''`
+  throughout correctly, because there is genuinely nothing per-language
+  here for it to mean.
+- Verified end-to-end, not just from source: `translatepress-checks.sh`
+  (9/9) — a post URL and its `/fr/`-prefixed counterpart resolve to the
+  same `post_id`; the homepage and its `/fr/` counterpart both resolve to
+  `HOME_ID`; a CCC title write reads back identically from either URL.
+  Confirmed the harness genuinely catches the regression by reverting the
+  fix locally first (5/9 failed, as predicted, matching this project's own
+  practice for every other integration harness).
+- **One consequence documented, not fixed — it isn't a CCC bug.**
+  TranslatePress's translation lookup is keyed on the literal original
+  string, so any edit to that string — from CCC, or from a site owner's
+  own hand-edit in the SEO plugin's metabox, no difference — orphans
+  whatever translation already existed until a human re-translates it in
+  TranslatePress's own editor. This is TranslatePress's own designed
+  behaviour for any edit source, not something this plugin introduces or
+  could avoid.
+- The pre-existing `lang` field's own fuzzing matrix (type confusion,
+  whitelist-bypass, injection/oversized/null-byte values — see the
+  previous addendum) was extended this session too:
+  `polylang-yoast-home-checks.sh` gained 12 checks covering it, since it
+  shipped in 0.9.0 but was never added to that matrix. No bug found —
+  `is_string()` + a strict `in_array()` whitelist already rejected
+  everything — now a permanent regression check.
+
+No new external requests, no new stored PII, no change to the
+authentication model. Full write-up in README.md's "Multilingual sites"
+section and CHANGELOG.md's 0.10.0 entry.
+
 ## Not covered here (separate backlog items)
 
 - PHPCS / WordPress-Coding-Standards pass.

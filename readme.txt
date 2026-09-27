@@ -4,7 +4,7 @@ Tags: seo, yoast, rank math, seopress, aioseo
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.9.0
+Stable tag: 0.10.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -48,6 +48,10 @@ Every write is capability-checked, validated, length-capped and logged with its 
 1. Tools → Crawl Cove: connection status, the detected SEO plugin, setup steps, and the change log with one-click revert.
 
 == Changelog ==
+
+= 0.10.0 =
+* Fix: on a site using TranslatePress (the other major free multilingual plugin, alongside Polylang), every URL under a non-default language's prefix (e.g. `/fr/some-post/`, or the `/fr/` homepage) was `ccc_unresolvable` — not a homepage-only edge case, EVERY translated post/page/term URL. Root cause: TranslatePress manages its language-prefixed URLs with plain string manipulation, not a WordPress rewrite rule (confirmed against its own source — no `add_rewrite_rule()` call anywhere in the plugin), so core's own `url_to_postid()` and this plugin's rewrite-rule matching had no way to recognise the prefix at all. Architecturally simpler than Polylang: TranslatePress has no separate post or SEO storage per language — it translates the SAME content's rendered strings at output time — so the fix strips a recognised language slug from the URL before any resolution runs, and every existing post/term/homepage path then handles it exactly like its default-language counterpart. No REST contract change: there is nothing per-language to report or target here, unlike Polylang's `lang` field.
+* Security: added the new-in-0.9.0 `lang` field to the fuzzing matrix every other field already gets (type confusion, whitelist-bypass attempts, injection-shaped/oversized/null-byte values) — no bug found, now a permanent regression check.
 
 = 0.9.0 =
 * Real per-language homepage title/description support for multilingual sites (Polylang): the "your latest posts" homepage now resolves a non-default language's own URL (e.g. `/fr/`) to a target you can push a fix to, instead of `ccc_unresolvable`. New optional `lang` field on `/resolve`, `/apply` and `/revert`, additive to the existing `post_id: 0` contract — omitting it targets the plain/default-language homepage exactly as before. Yoast SEO only: verified against Polylang's own source that it is the only supported SEO plugin with a per-language homepage storage mechanism at all (its own Yoast-specific compatibility module); Rank Math, SEOPress and AIOSEO now report `ccc_language_unsupported` for a language-qualified homepage change instead of staying silent about it.
