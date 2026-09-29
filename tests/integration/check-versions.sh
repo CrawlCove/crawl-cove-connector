@@ -54,7 +54,11 @@ check() {
     log "$label: could not read a Version: header from $zip/$mainfile — check by hand"
     return
   fi
-  if [[ "$have" == "$want"* || "$want" == "$have"* ]]; then
+  # Exact match, or one side is the other plus a ".N" patch component
+  # (e.g. 1.0.279 vs 1.0.279.1). A "-" suffix (28.6-RC4 vs 28.6) is a
+  # pre-release and must NOT match here — that prefix match is exactly how
+  # a cached RC read as "matches current stable" for a week (29 Sept 2026).
+  if [[ "$have" == "$want" || "$have" == "$want".* || "$want" == "$have".* ]]; then
     log "$label: cache matches current stable ($have)"
     return
   fi
@@ -63,7 +67,14 @@ check() {
   local have_base="${have%%-*}" want_base="${want%%-*}"
   local lower
   lower="$(printf '%s\n%s\n' "$have_base" "$want_base" | sort -V | head -1)"
-  if [[ "$have_base" == "$want_base" ]]; then
+  if [[ "$have_base" == "$want_base" && "$have" == *-* && "$want" != *-* ]]; then
+    # Same release line, but the cache is a pre-release (RC/beta) build and
+    # wordpress.org now ships the final. Found 29 Sept 2026: yoast.zip was
+    # 28.6-RC4 (cached 22 Sept) and read as "same line" for a week — including
+    # the morning 28.6 stable actually shipped. An RC is not what users run.
+    log "$label: STALE — cache has pre-release $have, wordpress.org stable is now $want (final superseded the RC)"
+    STALE=1
+  elif [[ "$have_base" == "$want_base" ]]; then
     log "$label: cache ($have) and current stable ($want) are the same release line — fine"
   elif [[ "$lower" == "$have_base" ]]; then
     log "$label: STALE — cache has $have, wordpress.org stable is $want (cache is BEHIND)"
@@ -73,6 +84,39 @@ check() {
   fi
 }
 
+# WordPress core itself: run.sh unpacks wordpress.zip the same way, and the
+# same silent staleness applies (26 Sept's cache was 7.1.1 while 7.1.2 was
+# current on 29 Sept). Compared against the core version-check API's first
+# offer, which is the current stable.
+check_core() {
+  local zip="wordpress.zip"
+  if [[ ! -f "$CACHE/$zip" ]]; then
+    log "WordPress core: no cache file $zip — nothing to compare"
+    return
+  fi
+  local have want
+  have="$(unzip -p "$CACHE/$zip" wordpress/wp-includes/version.php 2>/dev/null | grep -m1 -oP "wp_version = '\K[0-9][0-9A-Za-z.\-]*")"
+  want="$(curl -s 'https://api.wordpress.org/core/version-check/1.7/' \
+    | python3 -c "import json,sys; print(json.load(sys.stdin)['offers'][0]['version'])" 2>/dev/null)"
+  if [[ -z "$have" || -z "$want" ]]; then
+    log "WordPress core: could not read cached ($have) or current ($want) version — check by hand"
+    return
+  fi
+  if [[ "$have" == "$want" ]]; then
+    log "WordPress core: cache matches current stable ($have)"
+    return
+  fi
+  local lower
+  lower="$(printf '%s\n%s\n' "$have" "$want" | sort -V | head -1)"
+  if [[ "$lower" == "$have" ]]; then
+    log "WordPress core: STALE — cache has $have, current stable is $want (cache is BEHIND)"
+    STALE=1
+  else
+    log "WordPress core: cache has $have, current stable is $want — cache is AHEAD, not stale"
+  fi
+}
+
+check_core
 check "Rank Math" "seo-by-rank-math"        "rankmath.zip"  "seo-by-rank-math/rank-math.php"
 check "Yoast SEO"  "wordpress-seo"          "yoast.zip"     "wordpress-seo/wp-seo.php"
 check "SEOPress"   "wp-seopress"            "seopress.zip"  "wp-seopress/seopress.php"
@@ -81,8 +125,9 @@ check "AIOSEO"     "all-in-one-seo-pack"    "aioseo.zip"    "all-in-one-seo-pack
 if [[ "$STALE" -eq 1 ]]; then
   log "one or more caches are stale. To refresh, e.g.:"
   log "  curl -sL https://downloads.wordpress.org/plugin/<slug>.<version>.zip -o tests/integration/.cache/<name>.zip"
+  log "  curl -sL https://wordpress.org/wordpress-<version>.zip -o tests/integration/.cache/wordpress.zip"
   log "then re-run tests/integration/run.sh --adapter=<name> and check for regressions."
   exit 1
 fi
-log "all cached SEO plugin builds match current wordpress.org stable"
+log "cached WordPress core and all SEO plugin builds match current wordpress.org stable"
 exit 0
