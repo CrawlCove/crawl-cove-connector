@@ -36,15 +36,9 @@ for f in wordpress.zip sqlite.zip wp-cli.phar; do
 done
 
 log "staging a production-only copy of the plugin (no vendor/, tests/, dev tooling)"
-rm -rf "$DIST"
-mkdir -p "$DIST"
-rsync -a \
-  --exclude=vendor --exclude=tests --exclude=wordpress-org --exclude=.git \
-  --exclude=composer.json --exclude=composer.lock --exclude=phpcs.xml.dist \
-  --exclude=phpcompatibility.xml.dist \
-  --exclude=phpunit.xml --exclude=.phpunit.result.cache --exclude=.gitignore \
-  --exclude=SECURITY-NOTES.md --exclude=README.md --exclude=CHANGELOG.md \
-  "$PLUGIN_ROOT/" "$DIST/"
+# The exclude list lives in bin/build-zip.sh so the set Plugin Check sees is
+# byte-for-byte the set the release zip (and SVN trunk) ships.
+bash "$PLUGIN_ROOT/bin/build-zip.sh" --stage-to "$DIST"
 
 log "rebuilding throwaway WP site"
 rm -rf "$SITE"

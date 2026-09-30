@@ -21,7 +21,7 @@ Crawl Cove Connector closes that loop. The [Crawl Cove desktop crawler](https://
 - **Authentication via WordPress core Application Passwords**: no extra accounts, no API keys stored by the plugin, revoke access any time from your user profile.
 - **Respects WordPress permissions**: a connected user can only change posts they are allowed to edit (`edit_post` checked per post).
 - **Private by design**: no external requests, no tracking, no data leaves your site. The plugin only receives what you send it.
-- **Small and auditable**: a few hundred lines of GPL PHP, unit- and integration-tested, PHPCS-clean against WordPress-Extra and WordPress-Docs.
+- **Small and auditable**: plain GPL PHP with no framework or dependencies, unit- and integration-tested, PHPCS-clean against WordPress-Extra and WordPress-Docs.
 
 ## How it works
 
@@ -229,7 +229,7 @@ entirely).
 
 ## Installation
 
-1. Install and activate the plugin on your WordPress site (requires WordPress 6.2+ and PHP 7.4+).
+1. Download **[crawl-cove-connector.zip](https://github.com/CrawlCove/crawl-cove-connector/releases/latest/download/crawl-cove-connector.zip)** from the [latest GitHub release](https://github.com/CrawlCove/crawl-cove-connector/releases/latest). In your WordPress admin go to **Plugins → Add New → Upload Plugin**, choose the zip and activate it (requires WordPress 6.2+ and PHP 7.4+). Don't use GitHub's "Download ZIP" of the source tree: it unpacks under the wrong folder name and includes the test suite. The wordpress.org listing is pending; once it is live you will be able to install from **Plugins → Add New** by searching "Crawl Cove Connector".
 2. Create an Application Password: **Users → Profile → Application Passwords → "Crawl Cove"**.
 3. In the [Crawl Cove desktop app](https://crawlcove.com), open your site profile → WordPress and enter the site URL, username and application password.
 4. Crawl, review the suggested fixes, push the approved ones. Review or revert them any time under **Tools → Crawl Cove**.

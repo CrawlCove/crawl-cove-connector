@@ -22,3 +22,4 @@ tests/integration/.server.log
 tests/integration/.server-woo.log
 tests/integration/.server-ms.log
 tests/integration/.server-cache.log
+build/

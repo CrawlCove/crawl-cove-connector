@@ -1,0 +1,43 @@
+# Builds and attaches the installable zip when a version tag is pushed.
+# The tag push is the release press (it happens only after a wp-release
+# approval); this workflow just turns it into a GitHub Release with
+# crawl-cove-connector.zip attached, deterministically. No third-party
+# actions: checkout + the runner's own gh CLI.
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the plugin zip (fails if the tag and the plugin version disagree)
+        run: bash bin/build-zip.sh --expect-version "${GITHUB_REF_NAME}"
+
+      - name: Extract this version's CHANGELOG entry
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          awk -v v="$v" '
+            $0 ~ "^## " v " " { on=1; next }
+            on && /^## / { exit }
+            on { print }
+          ' CHANGELOG.md > build/notes.md
+          test -s build/notes.md
+
+      - name: Create the GitHub Release with the zip attached
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            --verify-tag \
+            --title "Crawl Cove Connector ${GITHUB_REF_NAME#v}" \
+            --notes-file build/notes.md \
+            build/crawl-cove-connector.zip

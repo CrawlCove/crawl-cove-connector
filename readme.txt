@@ -20,11 +20,11 @@ Crawl Cove Connector closes the loop between an SEO crawl and your CMS. Instead 
 * Uses WordPress core **Application Passwords** for authentication — no extra accounts, no API keys stored by the plugin, revoke access any time from your profile.
 * Per-post (and per-term) capability checks: a connected user can only change posts, pages or taxonomy terms they are allowed to edit.
 
-The plugin is a small, auditable bridge (a few hundred lines, no external requests, no tracking, GPL). It exposes five REST routes under `crawlcove/v1`: status, resolve, apply, changes, revert.
+The plugin is a small, auditable bridge (plain PHP, no framework, no external requests, no tracking, GPL). It exposes five REST routes under `crawlcove/v1`: status, resolve, apply, changes, revert.
 
 == Installation ==
 
-1. Install and activate the plugin.
+1. Download `crawl-cove-connector.zip` from the latest GitHub release at https://github.com/CrawlCove/crawl-cove-connector/releases/latest, then in your WordPress admin go to Plugins → Add New → Upload Plugin, choose the zip and activate it. (Once the plugin is listed on wordpress.org you will be able to install it from Plugins → Add New by searching "Crawl Cove Connector" instead.)
 2. Create an Application Password: Users → Profile → Application Passwords → "Crawl Cove".
 3. In the Crawl Cove desktop app, open your site profile → WordPress and enter the site URL, username and application password.
 4. Crawl, review the suggested fixes, push the approved ones. Review or revert them any time under Tools → Crawl Cove.

@@ -52,6 +52,17 @@
   live) — no bug found, `is_string()` + a strict `in_array()` whitelist
   already rejected everything; now a permanent regression check.
 
+- Packaging (30 Sept, before this version was tagged): `bin/build-zip.sh`
+  builds the installable `crawl-cove-connector.zip` from the same
+  production file set `tests/integration/plugin-check.sh` checks (one
+  exclude list now, shared), verifies the archive unpacks under
+  `crawl-cove-connector/` with no tests/vendor inside, and refuses to build
+  if the plugin header, `CCC_VERSION`, readme `Stable tag` and this
+  changelog disagree. A tag push (`v*`) now creates the GitHub Release with
+  that zip attached (`.github/workflows/release.yml`). Installation step 1
+  in readme.txt/README.md names the download; the "a few hundred lines"
+  size claim is gone (the plugin is about two thousand lines of PHP now).
+
 ## 0.9.0 — 2026-09-26
 
 - Real per-language "your latest posts" homepage title/description support
