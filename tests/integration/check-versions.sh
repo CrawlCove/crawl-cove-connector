@@ -116,7 +116,39 @@ check_core() {
   fi
 }
 
+# readme.txt's "Tested up to" is what wordpress.org shows installers: once
+# the current stable's major.minor is past it, the listing carries an
+# "untested with your version of WordPress" warning and the plugin drops
+# out of some directory searches. The harness verifies against the cached
+# core, so this only stays honest if somebody re-runs the matrix on the new
+# core and bumps the header. Compared major.minor only (that is what the
+# directory compares); a patch release never needs a bump.
+check_tested_up_to() {
+  local readme="$HERE/../../readme.txt"
+  local claim want want_mm
+  claim="$(grep -m1 -oP '^Tested up to:\s*\K[0-9]+\.[0-9]+' "$readme")"
+  want="$(curl -s 'https://api.wordpress.org/core/version-check/1.7/' \
+    | python3 -c "import json,sys; print(json.load(sys.stdin)['offers'][0]['version'])" 2>/dev/null)"
+  want_mm="$(printf '%s' "$want" | grep -oP '^[0-9]+\.[0-9]+')"
+  if [[ -z "$claim" || -z "$want_mm" ]]; then
+    log "Tested up to: could not read readme.txt claim ($claim) or current stable ($want) — check by hand"
+    return
+  fi
+  local lower
+  lower="$(printf '%s\n%s\n' "$claim" "$want_mm" | sort -V | head -1)"
+  if [[ "$claim" == "$want_mm" ]]; then
+    log "Tested up to: readme.txt says $claim, current stable is $want — current"
+  elif [[ "$lower" == "$claim" ]]; then
+    log "Tested up to: STALE — readme.txt says $claim, current stable is $want. Refresh wordpress.zip, re-run the full matrix, then bump the header (and Plugin Check)"
+    STALE=1
+  else
+    log "Tested up to: readme.txt says $claim, current stable is $want — readme is AHEAD of stable (claiming an unreleased version), fix the header"
+    STALE=1
+  fi
+}
+
 check_core
+check_tested_up_to
 check "Rank Math" "seo-by-rank-math"        "rankmath.zip"  "seo-by-rank-math/rank-math.php"
 check "Yoast SEO"  "wordpress-seo"          "yoast.zip"     "wordpress-seo/wp-seo.php"
 check "SEOPress"   "wp-seopress"            "seopress.zip"  "wp-seopress/seopress.php"
