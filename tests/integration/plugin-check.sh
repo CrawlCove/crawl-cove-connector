@@ -40,6 +40,13 @@ log "staging a production-only copy of the plugin (no vendor/, tests/, dev tooli
 # byte-for-byte the set the release zip (and SVN trunk) ships.
 bash "$PLUGIN_ROOT/bin/build-zip.sh" --stage-to "$DIST"
 
+# The shipped translation template must describe the shipped source. Cheap
+# (a second), and the staged copy is exactly the right input for it.
+if ! bash "$HERE/pot-check.sh" "$DIST"; then
+  log "FAIL — stale languages/crawl-cove-connector.pot (see above); regenerate it before submitting"
+  exit 1
+fi
+
 log "rebuilding throwaway WP site"
 rm -rf "$SITE"
 mkdir -p "$SITE"
