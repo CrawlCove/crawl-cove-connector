@@ -25,6 +25,13 @@ class CCC_Admin {
 	const APP_URL = 'https://crawlcove.com/download?utm_source=wordpress-plugin&utm_medium=referral&utm_campaign=connector-admin';
 
 	/**
+	 * Change-log rows per Tools page. Each row costs a post (or term) lookup
+	 * for its link and title; with CCC_Change_Log::MAX_ENTRIES at 1,000 an
+	 * unpaginated table would be a thousand of them on one admin request.
+	 */
+	const PER_PAGE = 100;
+
+	/**
 	 * Hook the admin menu and the revert form handler.
 	 */
 	public static function init() {
@@ -54,6 +61,7 @@ class CCC_Admin {
 		}
 		$change_id = isset( $_POST['change_id'] ) ? (int) $_POST['change_id'] : 0;
 		check_admin_referer( 'ccc_revert_' . $change_id );
+		$paged = isset( $_POST['paged'] ) ? max( 1, (int) $_POST['paged'] ) : 1;
 
 		$adapter = CCC_Adapter::detect();
 		$notice  = 'error';
@@ -65,6 +73,7 @@ class CCC_Admin {
 				array(
 					'page'       => 'crawl-cove-connector',
 					'ccc_notice' => $notice,
+					'paged'      => $paged,
 				),
 				admin_url( 'tools.php' )
 			)
@@ -78,9 +87,27 @@ class CCC_Admin {
 	public static function render() {
 		$adapter = CCC_Adapter::detect();
 		$log     = CCC_Change_Log::all();
-		// Read-only display flag from our own redirect (handle_revert() already
-		// nonce-checked the action that set it); nothing here changes state.
+		// Read-only display flags from our own redirect / pagination links
+		// (handle_revert() already nonce-checked the action that set the
+		// notice); nothing here changes state.
 		$notice = isset( $_GET['ccc_notice'] ) ? sanitize_key( wp_unslash( $_GET['ccc_notice'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$paged  = isset( $_GET['paged'] ) ? max( 1, (int) $_GET['paged'] ) : 1; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+
+		$total = count( $log );
+		$pages = max( 1, (int) ceil( $total / self::PER_PAGE ) );
+		$paged = min( $paged, $pages );
+		$rows  = array_slice( $log, ( $paged - 1 ) * self::PER_PAGE, self::PER_PAGE );
+
+		// One query for every post on this page instead of one per row.
+		$post_ids = array();
+		foreach ( $rows as $row ) {
+			if ( (int) $row['post_id'] > 0 ) {
+				$post_ids[] = (int) $row['post_id'];
+			}
+		}
+		if ( $post_ids ) {
+			_prime_post_caches( array_unique( $post_ids ), false, false );
+		}
 		?>
 		<div class="wrap">
 			<h1><?php esc_html_e( 'Crawl Cove Connector', 'crawl-cove-connector' ); ?></h1>
@@ -152,6 +179,34 @@ class CCC_Admin {
 			<?php if ( ! $log ) : ?>
 				<p><?php esc_html_e( 'No changes pushed yet.', 'crawl-cove-connector' ); ?></p>
 			<?php else : ?>
+				<?php if ( $pages > 1 ) : ?>
+					<p class="tablenav-pages" style="margin:0 0 8px">
+						<?php
+						printf(
+							/* translators: 1: first row number shown, 2: last row number shown, 3: total number of logged changes */
+							esc_html__( 'Showing changes %1$s to %2$s of %3$s.', 'crawl-cove-connector' ),
+							esc_html( number_format_i18n( ( $paged - 1 ) * self::PER_PAGE + 1 ) ),
+							esc_html( number_format_i18n( ( $paged - 1 ) * self::PER_PAGE + count( $rows ) ) ),
+							esc_html( number_format_i18n( $total ) )
+						);
+						?>
+						<span class="pagination-links" style="margin-left:8px">
+						<?php
+						echo wp_kses_post(
+							paginate_links(
+								array(
+									'base'    => add_query_arg( 'paged', '%#%', admin_url( 'tools.php?page=crawl-cove-connector' ) ),
+									'format'  => '',
+									'current' => $paged,
+									'total'   => $pages,
+									'type'    => 'plain',
+								)
+							)
+						);
+						?>
+						</span>
+					</p>
+				<?php endif; ?>
 				<table class="widefat striped">
 					<thead>
 						<tr>
@@ -165,7 +220,7 @@ class CCC_Admin {
 						</tr>
 					</thead>
 					<tbody>
-					<?php foreach ( $log as $e ) : ?>
+					<?php foreach ( $rows as $e ) : ?>
 						<tr>
 							<td><?php echo esc_html( wp_date( 'Y-m-d H:i', (int) $e['time'] ) ); ?></td>
 							<td>
@@ -201,6 +256,7 @@ class CCC_Admin {
 									<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 										<input type="hidden" name="action" value="ccc_revert" />
 										<input type="hidden" name="change_id" value="<?php echo (int) $e['id']; ?>" />
+										<input type="hidden" name="paged" value="<?php echo (int) $paged; ?>" />
 										<?php wp_nonce_field( 'ccc_revert_' . (int) $e['id'] ); ?>
 										<button type="submit" class="button button-small"><?php esc_html_e( 'Revert', 'crawl-cove-connector' ); ?></button>
 									</form>

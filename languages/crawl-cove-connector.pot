@@ -9,15 +9,15 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-02T13:12:03+00:00\n"
+"POT-Creation-Date: 2026-10-02T13:15:23+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: crawl-cove-connector\n"
 
 #. Plugin Name of the plugin
 #: crawl-cove-connector.php
-#: admin/class-ccc-admin.php:40
-#: admin/class-ccc-admin.php:86
+#: admin/class-ccc-admin.php:47
+#: admin/class-ccc-admin.php:113
 msgid "Crawl Cove Connector"
 msgstr ""
 
@@ -33,7 +33,7 @@ msgstr ""
 
 #. Author of the plugin
 #: crawl-cove-connector.php
-#: admin/class-ccc-admin.php:41
+#: admin/class-ccc-admin.php:48
 msgid "Crawl Cove"
 msgstr ""
 
@@ -42,109 +42,115 @@ msgstr ""
 msgid "https://crawlcove.com"
 msgstr ""
 
-#: admin/class-ccc-admin.php:53
+#: admin/class-ccc-admin.php:60
 msgid "Not allowed."
 msgstr ""
 
-#: admin/class-ccc-admin.php:89
+#: admin/class-ccc-admin.php:116
 msgid "Change reverted."
 msgstr ""
 
-#: admin/class-ccc-admin.php:91
+#: admin/class-ccc-admin.php:118
 msgid "Could not revert that change."
 msgstr ""
 
-#: admin/class-ccc-admin.php:94
+#: admin/class-ccc-admin.php:121
 msgid "Status"
 msgstr ""
 
-#: admin/class-ccc-admin.php:98
+#: admin/class-ccc-admin.php:125
 msgid "SEO plugin detected"
 msgstr ""
 
-#: admin/class-ccc-admin.php:104
+#: admin/class-ccc-admin.php:131
 msgid "None"
 msgstr ""
 
-#: admin/class-ccc-admin.php:105
+#: admin/class-ccc-admin.php:132
 msgid "install Yoast SEO, Rank Math, SEOPress or AIOSEO; fixes cannot be applied without one."
 msgstr ""
 
-#: admin/class-ccc-admin.php:110
+#: admin/class-ccc-admin.php:137
 msgid "REST endpoint"
 msgstr ""
 
-#: admin/class-ccc-admin.php:116
+#: admin/class-ccc-admin.php:143
 msgid "Connect the Crawl Cove desktop app"
 msgstr ""
 
 #. translators: %s: link to the Crawl Cove download page
-#: admin/class-ccc-admin.php:122
+#: admin/class-ccc-admin.php:149
 #, php-format
 msgid "Install the <a href=\"%s\">Crawl Cove desktop app</a> on your computer, if you have not already. It is the crawler that finds the title and description problems; this plugin only applies the fixes you approve there. New accounts start on a free trial."
 msgstr ""
 
 #. translators: %s: link to the current user's profile page
-#: admin/class-ccc-admin.php:131
+#: admin/class-ccc-admin.php:158
 #, php-format
 msgid "Create an <a href=\"%s\">Application Password</a> for your user (Users → Profile → Application Passwords). Name it \"Crawl Cove\"."
 msgstr ""
 
-#: admin/class-ccc-admin.php:136
+#: admin/class-ccc-admin.php:163
 msgid "In Crawl Cove, open the site profile → WordPress → paste the site URL, your username and the application password."
 msgstr ""
 
-#: admin/class-ccc-admin.php:137
+#: admin/class-ccc-admin.php:164
 msgid "Crawl, review the suggested title/description fixes, and push the approved ones. Every push lands in the log below and can be reverted."
 msgstr ""
 
-#: admin/class-ccc-admin.php:140
+#: admin/class-ccc-admin.php:167
 msgid "Change log"
 msgstr ""
 
 #. translators: %s: number of entries the change log keeps
-#: admin/class-ccc-admin.php:146
+#: admin/class-ccc-admin.php:173
 #, php-format
 msgid "The log keeps the most recent %s changes. It is full, so each new push drops the oldest entries (already-reverted ones first); dropped entries can no longer be reverted from here."
 msgstr ""
 
-#: admin/class-ccc-admin.php:153
+#: admin/class-ccc-admin.php:180
 msgid "No changes pushed yet."
 msgstr ""
 
-#: admin/class-ccc-admin.php:158
+#. translators: 1: first row number shown, 2: last row number shown, 3: total number of logged changes
+#: admin/class-ccc-admin.php:187
+#, php-format
+msgid "Showing changes %1$s to %2$s of %3$s."
+msgstr ""
+
+#: admin/class-ccc-admin.php:213
 msgid "When"
 msgstr ""
 
-#: admin/class-ccc-admin.php:159
+#: admin/class-ccc-admin.php:214
 msgid "Post"
 msgstr ""
 
-#: admin/class-ccc-admin.php:160
+#: admin/class-ccc-admin.php:215
 msgid "Field"
 msgstr ""
 
-#: admin/class-ccc-admin.php:161
+#: admin/class-ccc-admin.php:216
 msgid "Before"
 msgstr ""
 
-#: admin/class-ccc-admin.php:162
+#: admin/class-ccc-admin.php:217
 msgid "After"
 msgstr ""
 
-#: admin/class-ccc-admin.php:163
+#: admin/class-ccc-admin.php:218
 msgid "By"
 msgstr ""
 
-#: admin/class-ccc-admin.php:173
+#: admin/class-ccc-admin.php:228
 msgid "Homepage"
 msgstr ""
 
-#: admin/class-ccc-admin.php:205
+#: admin/class-ccc-admin.php:261
 msgid "Revert"
 msgstr ""
 
-#: admin/class-ccc-admin.php:208
+#: admin/class-ccc-admin.php:264
 msgid "reverted"
 msgstr ""
 

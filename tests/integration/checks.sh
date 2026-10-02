@@ -113,4 +113,23 @@ else
   FAIL=$((FAIL+1)); echo "  FAIL admin: desktop app link missing or its utm parameters were mangled"; echo "$ADMIN_HTML" | grep -o '<li>.*crawlcove.com[^<]*' | head -3
 fi
 
+# Pagination: 100 rows a page, page 2 reachable, revert forms carry the page.
+# Seeds enough entries to need two pages (the log already holds this run's
+# earlier applies, so the total is asserted by shape, not by number).
+php "$CCC_CACHE/wp-cli.phar" eval "for (\$i = 0; \$i < 101; \$i++) { CCC_Change_Log::record( $CCC_POST_EDITOR, 'title', 'seed-old-' . \$i, 'seed-new-' . \$i, 'harness' ); }" --path="$CCC_SITE" >/dev/null 2>&1
+PAGE1="$(php "$CCC_CACHE/wp-cli.phar" eval 'require_once WP_PLUGIN_DIR . "/crawl-cove-connector/admin/class-ccc-admin.php"; wp_set_current_user( 1 ); CCC_Admin::render();' --path="$CCC_SITE" 2>/dev/null)"
+PAGE2="$(php "$CCC_CACHE/wp-cli.phar" eval '$_GET["paged"] = "2"; require_once WP_PLUGIN_DIR . "/crawl-cove-connector/admin/class-ccc-admin.php"; wp_set_current_user( 1 ); CCC_Admin::render();' --path="$CCC_SITE" 2>/dev/null)"
+P1_FORMS="$(echo "$PAGE1" | grep -c 'name="change_id"')"
+P2_FORMS="$(echo "$PAGE2" | grep -c 'name="change_id"')"
+if echo "$PAGE1" | grep -q 'Showing changes 1 to 100 of' && [[ "$P1_FORMS" == "100" ]]; then
+  PASS=$((PASS+1)); echo "  ok   admin: change log page 1 shows exactly 100 rows with the range line"
+else
+  FAIL=$((FAIL+1)); echo "  FAIL admin: page 1 expected 100 rows + range line, got $P1_FORMS rows"
+fi
+if echo "$PAGE2" | grep -q 'Showing changes 101 to' && [[ "$P2_FORMS" -ge 1 && "$P2_FORMS" -le 100 ]] && echo "$PAGE2" | grep -q 'name="paged" value="2"'; then
+  PASS=$((PASS+1)); echo "  ok   admin: page 2 shows the remainder and its revert forms carry paged=2"
+else
+  FAIL=$((FAIL+1)); echo "  FAIL admin: page 2 wrong (rows=$P2_FORMS)"; echo "$PAGE2" | grep -o 'Showing changes[^<]*' | head -2
+fi
+
 summary

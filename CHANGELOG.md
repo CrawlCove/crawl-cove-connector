@@ -12,7 +12,10 @@
   /apply, /revert and the Tools page read), already-reverted entries are
   dropped before any live one, the cap is documented in both readmes, and
   the Tools page says when the log is full. No REST contract change: the
-  `/changes` shape is unchanged, it can just return more entries.
+  `/changes` shape is unchanged, it can just return more entries. The
+  Tools page paginates the log (100 rows a page, revert keeps your page)
+  and loads each page's posts in one query, so the bigger cap costs the
+  admin nothing.
 
 ## 0.10.1 — 2026-10-02
 
