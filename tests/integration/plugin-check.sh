@@ -72,7 +72,9 @@ log "running wp plugin check crawl-cove-connector"
 OUT="$("${WPCLI[@]}" plugin check crawl-cove-connector --path="$SITE" --allow-root 2>&1)"
 echo "$OUT"
 
-if echo "$OUT" | grep -qE "^Success: Checks complete\. No errors found\.$"; then
+# Here-string, not `echo | grep -q`: under pipefail grep -q's early exit
+# SIGPIPEs the echo and the pipeline reads as failed (checks.sh hit this).
+if grep -qE "^Success: Checks complete\. No errors found\.$" <<<"$OUT"; then
   log "PASS — no errors or warnings"
   exit 0
 fi

@@ -105,9 +105,12 @@ echo "-- admin page --"
 # check looks for each parameter on its own rather than the literal URL).
 # wp-cli is not is_admin(), so the admin class is required explicitly.
 ADMIN_HTML="$(php "$CCC_CACHE/wp-cli.phar" eval 'require_once WP_PLUGIN_DIR . "/crawl-cove-connector/admin/class-ccc-admin.php"; wp_set_current_user( 1 ); CCC_Admin::render();' --path="$CCC_SITE" 2>/dev/null)"
-if echo "$ADMIN_HTML" | grep -q 'href="https://crawlcove.com/download?utm_source=wordpress-plugin' \
-   && echo "$ADMIN_HTML" | grep -q 'utm_medium=referral' \
-   && echo "$ADMIN_HTML" | grep -q 'utm_campaign=connector-admin"'; then
+# Substring tests, not `echo | grep -q`: under `set -o pipefail` grep -q
+# exits on the first match, echo takes SIGPIPE, and the pipeline reads as
+# failed — a timing flake that passed on one adapter and failed on three.
+if [[ "$ADMIN_HTML" == *'href="https://crawlcove.com/download?utm_source=wordpress-plugin'* \
+   && "$ADMIN_HTML" == *'utm_medium=referral'* \
+   && "$ADMIN_HTML" == *'utm_campaign=connector-admin"'* ]]; then
   PASS=$((PASS+1)); echo "  ok   admin: setup step links the desktop app download with attribution intact"
 else
   FAIL=$((FAIL+1)); echo "  FAIL admin: desktop app link missing or its utm parameters were mangled"; echo "$ADMIN_HTML" | grep -o '<li>.*crawlcove.com[^<]*' | head -3
@@ -121,12 +124,12 @@ PAGE1="$(php "$CCC_CACHE/wp-cli.phar" eval 'require_once WP_PLUGIN_DIR . "/crawl
 PAGE2="$(php "$CCC_CACHE/wp-cli.phar" eval '$_GET["paged"] = "2"; require_once WP_PLUGIN_DIR . "/crawl-cove-connector/admin/class-ccc-admin.php"; wp_set_current_user( 1 ); CCC_Admin::render();' --path="$CCC_SITE" 2>/dev/null)"
 P1_FORMS="$(echo "$PAGE1" | grep -c 'name="change_id"')"
 P2_FORMS="$(echo "$PAGE2" | grep -c 'name="change_id"')"
-if echo "$PAGE1" | grep -q 'Showing changes 1 to 100 of' && [[ "$P1_FORMS" == "100" ]]; then
+if [[ "$PAGE1" == *'Showing changes 1 to 100 of'* && "$P1_FORMS" == "100" ]]; then
   PASS=$((PASS+1)); echo "  ok   admin: change log page 1 shows exactly 100 rows with the range line"
 else
-  FAIL=$((FAIL+1)); echo "  FAIL admin: page 1 expected 100 rows + range line, got $P1_FORMS rows"
+  FAIL=$((FAIL+1)); echo "  FAIL admin: page 1 expected 100 rows + range line, got $P1_FORMS rows"; echo "$PAGE1" | grep -o "Showing changes[^<]*" | head -2
 fi
-if echo "$PAGE2" | grep -q 'Showing changes 101 to' && [[ "$P2_FORMS" -ge 1 && "$P2_FORMS" -le 100 ]] && echo "$PAGE2" | grep -q 'name="paged" value="2"'; then
+if [[ "$PAGE2" == *'Showing changes 101 to'* && "$P2_FORMS" -ge 1 && "$P2_FORMS" -le 100 && "$PAGE2" == *'name="paged" value="2"'* ]]; then
   PASS=$((PASS+1)); echo "  ok   admin: page 2 shows the remainder and its revert forms carry paged=2"
 else
   FAIL=$((FAIL+1)); echo "  FAIL admin: page 2 wrong (rows=$P2_FORMS)"; echo "$PAGE2" | grep -o 'Showing changes[^<]*' | head -2
