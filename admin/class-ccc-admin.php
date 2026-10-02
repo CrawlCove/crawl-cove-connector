@@ -14,6 +14,17 @@ defined( 'ABSPATH' ) || exit;
 class CCC_Admin {
 
 	/**
+	 * Where the "get the desktop app" step on the Tools page sends people.
+	 *
+	 * The utm_* parameters are plain, user-visible query parameters on a
+	 * link the site owner chooses to click — not a request this plugin makes,
+	 * not a beacon, no identifier of the site or user is carried. They only
+	 * let crawlcove.com count how many of its visitors arrived from an
+	 * installed copy of this plugin rather than from a search engine.
+	 */
+	const APP_URL = 'https://crawlcove.com/download?utm_source=wordpress-plugin&utm_medium=referral&utm_campaign=connector-admin';
+
+	/**
 	 * Hook the admin menu and the revert form handler.
 	 */
 	public static function init() {
@@ -104,6 +115,15 @@ class CCC_Admin {
 
 			<h2><?php esc_html_e( 'Connect the Crawl Cove desktop app', 'crawl-cove-connector' ); ?></h2>
 			<ol style="max-width:700px">
+				<li>
+				<?php
+					printf(
+						/* translators: %s: link to the Crawl Cove download page */
+						wp_kses( __( 'Install the <a href="%s">Crawl Cove desktop app</a> on your computer, if you have not already. It is the crawler that finds the title and description problems; this plugin only applies the fixes you approve there. New accounts start on a free trial.', 'crawl-cove-connector' ), array( 'a' => array( 'href' => array() ) ) ),
+						esc_url( self::APP_URL )
+					);
+				?>
+				</li>
 				<li>
 				<?php
 					printf(

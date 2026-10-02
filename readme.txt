@@ -4,7 +4,7 @@ Tags: seo, yoast, rank math, seopress, aioseo
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.10.0
+Stable tag: 0.10.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -12,7 +12,7 @@ Push approved title/description fixes from Crawl Cove into Yoast, Rank Math, SEO
 
 == Description ==
 
-Crawl Cove Connector closes the loop between an SEO crawl and your CMS. Instead of exporting a spreadsheet of title and meta description problems and fixing each post by hand, the [Crawl Cove](https://crawlcove.com) desktop crawler sends the fixes you approved straight to your site, and this plugin applies them to whichever SEO plugin you already use.
+Crawl Cove Connector closes the loop between an SEO crawl and your CMS. Instead of exporting a spreadsheet of title and meta description problems and fixing each post by hand, the [Crawl Cove](https://crawlcove.com/?utm_source=wordpress-plugin&utm_medium=referral&utm_campaign=wporg-readme) desktop crawler sends the fixes you approved straight to your site, and this plugin applies them to whichever SEO plugin you already use.
 
 * Works with **Yoast SEO**, **Rank Math**, **SEOPress** and **AIOSEO** (writes their native fields — nothing is duplicated or overridden at render time).
 * **You stay in control**: nothing is applied unless you approved it in the crawler, every change is logged with its previous value, and any change can be reverted with one click from Tools → Crawl Cove (or from the app).
@@ -26,7 +26,7 @@ The plugin is a small, auditable bridge (plain PHP, no framework, no external re
 
 1. Download `crawl-cove-connector.zip` from the latest GitHub release at https://github.com/CrawlCove/crawl-cove-connector/releases/latest, then in your WordPress admin go to Plugins → Add New → Upload Plugin, choose the zip and activate it. (Once the plugin is listed on wordpress.org you will be able to install it from Plugins → Add New by searching "Crawl Cove Connector" instead.)
 2. Create an Application Password: Users → Profile → Application Passwords → "Crawl Cove".
-3. In the Crawl Cove desktop app, open your site profile → WordPress and enter the site URL, username and application password.
+3. In the [Crawl Cove desktop app](https://crawlcove.com/download?utm_source=wordpress-plugin&utm_medium=referral&utm_campaign=wporg-readme), open your site profile → WordPress and enter the site URL, username and application password.
 4. Crawl, review the suggested fixes, push the approved ones. Review or revert them any time under Tools → Crawl Cove.
 
 == Frequently Asked Questions ==
@@ -48,6 +48,9 @@ Every write is capability-checked, validated, length-capped and logged with its 
 1. Tools → Crawl Cove: connection status, the detected SEO plugin, setup steps, and the change log with one-click revert.
 
 == Changelog ==
+
+= 0.10.1 =
+* Tools → Crawl Cove now links to the Crawl Cove desktop app as its first setup step, for anyone who found the plugin before the crawler. That link, and the crawlcove.com links in this readme, carry plain `utm_*` query parameters so crawlcove.com can count visits that came from an installed copy of the plugin. The plugin itself still makes no requests, loads nothing remote and sends nothing about your site or users; the parameters are visible in the link and only travel if you click it.
 
 = 0.10.0 =
 * Fix: on a site using TranslatePress (the other major free multilingual plugin, alongside Polylang), every URL under a non-default language's prefix (e.g. `/fr/some-post/`, or the `/fr/` homepage) was `ccc_unresolvable` — not a homepage-only edge case, EVERY translated post/page/term URL. Root cause: TranslatePress manages its language-prefixed URLs with plain string manipulation, not a WordPress rewrite rule (confirmed against its own source — no `add_rewrite_rule()` call anywhere in the plugin), so core's own `url_to_postid()` and this plugin's rewrite-rule matching had no way to recognise the prefix at all. Architecturally simpler than Polylang: TranslatePress has no separate post or SEO storage per language — it translates the SAME content's rendered strings at output time — so the fix strips a recognised language slug from the URL before any resolution runs, and every existing post/term/homepage path then handles it exactly like its default-language counterpart. No REST contract change: there is nothing per-language to report or target here, unlike Polylang's `lang` field.

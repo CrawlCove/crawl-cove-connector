@@ -1,6 +1,6 @@
 # Crawl Cove Connector — WordPress SEO Plugin for Bulk Title & Meta Description Fixes
 
-The official WordPress companion plugin for [Crawl Cove](https://crawlcove.com), the desktop SEO crawler. Push approved page title and meta description fixes from your SEO audit straight into **Yoast SEO**, **Rank Math**, **SEOPress** or **All in One SEO (AIOSEO)**, with a full change log and one-click revert.
+The official WordPress companion plugin for [Crawl Cove](https://crawlcove.com/?utm_source=wordpress-plugin&utm_medium=referral&utm_campaign=github-readme), the desktop SEO crawler. Push approved page title and meta description fixes from your SEO audit straight into **Yoast SEO**, **Rank Math**, **SEOPress** or **All in One SEO (AIOSEO)**, with a full change log and one-click revert.
 
 Crawl your site, review the suggested fixes in the app, push the ones you approve. No CSV exports, no spreadsheets, no copy-pasting into the post editor one page at a time.
 
@@ -231,7 +231,7 @@ entirely).
 
 1. Download **[crawl-cove-connector.zip](https://github.com/CrawlCove/crawl-cove-connector/releases/latest/download/crawl-cove-connector.zip)** from the [latest GitHub release](https://github.com/CrawlCove/crawl-cove-connector/releases/latest). In your WordPress admin go to **Plugins → Add New → Upload Plugin**, choose the zip and activate it (requires WordPress 6.2+ and PHP 7.4+). Don't use GitHub's "Download ZIP" of the source tree: it unpacks under the wrong folder name and includes the test suite. The wordpress.org listing is pending; once it is live you will be able to install from **Plugins → Add New** by searching "Crawl Cove Connector".
 2. Create an Application Password: **Users → Profile → Application Passwords → "Crawl Cove"**.
-3. In the [Crawl Cove desktop app](https://crawlcove.com), open your site profile → WordPress and enter the site URL, username and application password.
+3. In the [Crawl Cove desktop app](https://crawlcove.com/download?utm_source=wordpress-plugin&utm_medium=referral&utm_campaign=github-readme), open your site profile → WordPress and enter the site URL, username and application password.
 4. Crawl, review the suggested fixes, push the approved ones. Review or revert them any time under **Tools → Crawl Cove**.
 
 ## Frequently asked questions

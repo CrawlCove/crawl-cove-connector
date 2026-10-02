@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.10.1 — 2026-10-02
+
+- **Tools → Crawl Cove now links to the desktop app.** The "Connect the
+  Crawl Cove desktop app" steps told a site owner to open Crawl Cove
+  without ever saying where to get it — a problem for anyone who finds the
+  plugin first (the wordpress.org listing, a search, a colleague's site)
+  rather than the crawler first. A new first step links to the download
+  page. That link, and the crawlcove.com links in the two readmes, now
+  carry plain `utm_*` query parameters so crawlcove.com can count visitors
+  who arrived from an installed copy of the plugin. Nothing else changes:
+  the plugin still makes no requests of its own, loads nothing remote and
+  sends nothing about your site or users — the parameters are visible in
+  the link and only travel if you click it. No code path other than the
+  admin page's HTML is touched.
+
 ## 0.10.0 — 2026-09-27
 
 - **Fix: TranslatePress compatibility.** On a site running TranslatePress

@@ -98,4 +98,19 @@ req POST /resolve "$EDITOR" "{\"urls\":[\"$CCC_URL/\"]}"
 check "resolve: front page title round-trips" 200 "$RESP_HTTP" '.[0].current.title' 'Homepage Title' "$RESP_BODY"
 check "resolve: front page description round-trips" 200 "$RESP_HTTP" '.[0].current.description' 'Homepage Description' "$RESP_BODY"
 
+echo "-- admin page --"
+# Tools -> Crawl Cove must give someone who found the plugin first a way to the
+# desktop app, and that link must keep its utm_* query parameters through
+# esc_url() (which rewrites & as &#038; — a browser decodes that back, so the
+# check looks for each parameter on its own rather than the literal URL).
+# wp-cli is not is_admin(), so the admin class is required explicitly.
+ADMIN_HTML="$(php "$CCC_CACHE/wp-cli.phar" eval 'require_once WP_PLUGIN_DIR . "/crawl-cove-connector/admin/class-ccc-admin.php"; wp_set_current_user( 1 ); CCC_Admin::render();' --path="$CCC_SITE" 2>/dev/null)"
+if echo "$ADMIN_HTML" | grep -q 'href="https://crawlcove.com/download?utm_source=wordpress-plugin' \
+   && echo "$ADMIN_HTML" | grep -q 'utm_medium=referral' \
+   && echo "$ADMIN_HTML" | grep -q 'utm_campaign=connector-admin"'; then
+  PASS=$((PASS+1)); echo "  ok   admin: setup step links the desktop app download with attribution intact"
+else
+  FAIL=$((FAIL+1)); echo "  FAIL admin: desktop app link missing or its utm parameters were mangled"; echo "$ADMIN_HTML" | grep -o '<li>.*crawlcove.com[^<]*' | head -3
+fi
+
 summary
