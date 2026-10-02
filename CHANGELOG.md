@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.10.2 — 2026-10-02
+
+- **Change log keeps 1,000 entries, and evicts reverted ones first.** The
+  log was capped at 200 entries and silently dropped the oldest when full.
+  A title and a description on one post are two entries, so one push over
+  100 posts overflowed it: the earliest changes of that same push were
+  already gone — and unrevertable — when it finished, while both readmes
+  promised "any change can be reverted". The cap is now 1,000 (worst case
+  at the input limits is about 2MB in a non-autoloaded option that only
+  /apply, /revert and the Tools page read), already-reverted entries are
+  dropped before any live one, the cap is documented in both readmes, and
+  the Tools page says when the log is full. No REST contract change: the
+  `/changes` shape is unchanged, it can just return more entries.
+
 ## 0.10.1 — 2026-10-02
 
 - **Tools → Crawl Cove now links to the desktop app.** The "Connect the

@@ -4,7 +4,7 @@ Tags: seo, yoast, rank math, seopress, aioseo
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.10.1
+Stable tag: 0.10.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -15,7 +15,7 @@ Push approved title/description fixes from Crawl Cove into Yoast, Rank Math, SEO
 Crawl Cove Connector closes the loop between an SEO crawl and your CMS. Instead of exporting a spreadsheet of title and meta description problems and fixing each post by hand, the [Crawl Cove](https://crawlcove.com/?utm_source=wordpress-plugin&utm_medium=referral&utm_campaign=wporg-readme) desktop crawler sends the fixes you approved straight to your site, and this plugin applies them to whichever SEO plugin you already use.
 
 * Works with **Yoast SEO**, **Rank Math**, **SEOPress** and **AIOSEO** (writes their native fields — nothing is duplicated or overridden at render time).
-* **You stay in control**: nothing is applied unless you approved it in the crawler, every change is logged with its previous value, and any change can be reverted with one click from Tools → Crawl Cove (or from the app).
+* **You stay in control**: nothing is applied unless you approved it in the crawler, every change is logged with its previous value, and any change can be reverted with one click from Tools → Crawl Cove (or from the app). The log keeps the most recent 1,000 entries; once it is full, each new push drops the oldest (already-reverted ones first) and the Tools page says so.
 * **Dry-run mode** shows exactly what would change before anything is written.
 * Uses WordPress core **Application Passwords** for authentication — no extra accounts, no API keys stored by the plugin, revoke access any time from your profile.
 * Per-post (and per-term) capability checks: a connected user can only change posts, pages or taxonomy terms they are allowed to edit.
@@ -48,6 +48,9 @@ Every write is capability-checked, validated, length-capped and logged with its 
 1. Tools → Crawl Cove: connection status, the detected SEO plugin, setup steps, and the change log with one-click revert.
 
 == Changelog ==
+
+= 0.10.2 =
+* The change log keeps the most recent 1,000 entries (was 200, which one push over 100 posts could overflow, dropping — unrevertably — the earliest changes of that same push). Already-reverted entries are dropped before any live one, the cap is documented, and Tools → Crawl Cove says when the log is full. No REST change.
 
 = 0.10.1 =
 * Tools → Crawl Cove now links to the Crawl Cove desktop app as its first setup step, for anyone who found the plugin before the crawler. That link, and the crawlcove.com links in this readme, carry plain `utm_*` query parameters so crawlcove.com can count visits that came from an installed copy of the plugin. The plugin itself still makes no requests, loads nothing remote and sends nothing about your site or users; the parameters are visible in the link and only travel if you click it.

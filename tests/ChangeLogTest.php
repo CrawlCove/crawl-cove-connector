@@ -32,6 +32,45 @@ class ChangeLogTest extends TestCase {
 		$this->assertNull( CCC_Change_Log::find( 1 ) );
 	}
 
+	public function test_cap_evicts_reverted_entries_before_live_ones() {
+		// Fill to the cap, revert two of the NEWER entries, then push one more:
+		// the oldest live entry must survive and a reverted newer one must go.
+		for ( $i = 1; $i <= CCC_Change_Log::MAX_ENTRIES; $i++ ) {
+			CCC_Change_Log::record( 7, 'title', "old$i", "new$i", 'bloo' );
+		}
+		CCC_Change_Log::revert( CCC_Change_Log::MAX_ENTRIES - 3, $this->adapter );
+		CCC_Change_Log::revert( CCC_Change_Log::MAX_ENTRIES - 8, $this->adapter );
+
+		CCC_Change_Log::record( 7, 'title', 'oldX', 'newX', 'bloo' );
+
+		$log = CCC_Change_Log::all();
+		$this->assertCount( CCC_Change_Log::MAX_ENTRIES, $log );
+		$this->assertNotNull( CCC_Change_Log::find( 1 ), 'oldest live entry kept' );
+		$this->assertNotNull( CCC_Change_Log::find( CCC_Change_Log::MAX_ENTRIES - 3 ), 'the newer reverted entry stays until needed' );
+		$this->assertNull( CCC_Change_Log::find( CCC_Change_Log::MAX_ENTRIES - 8 ), 'the OLDEST reverted entry is the one evicted' );
+		$this->assertSame( CCC_Change_Log::MAX_ENTRIES + 1, $log[0]['id'], 'newest first is preserved' );
+		$ids = array_column( $log, 'id' );
+		$this->assertSame( $ids, array_values( array_unique( $ids ) ) );
+		$sorted = $ids;
+		rsort( $sorted );
+		$this->assertSame( $sorted, $ids, 'still strictly newest-first after eviction' );
+	}
+
+	public function test_evict_falls_back_to_oldest_live_when_no_reverted_entries_suffice() {
+		$log = array();
+		for ( $i = CCC_Change_Log::MAX_ENTRIES + 3; $i >= 1; $i-- ) {
+			$log[] = array( 'id' => $i, 'reverted' => ( 2 === $i ) );
+		}
+		$out = CCC_Change_Log::evict( $log );
+		$this->assertCount( CCC_Change_Log::MAX_ENTRIES, $out );
+		$ids = array_column( $out, 'id' );
+		$this->assertNotContains( 2, $ids, 'the one reverted entry goes first' );
+		$this->assertNotContains( 1, $ids, 'then the oldest live ones' );
+		$this->assertNotContains( 3, $ids );
+		$this->assertContains( 4, $ids );
+		$this->assertSame( CCC_Change_Log::MAX_ENTRIES + 3, $ids[0] );
+	}
+
 	public function test_revert_restores_previous_value_and_marks_entry() {
 		$this->adapter->set_title( 7, 'Original' );
 		$entry = CCC_Change_Log::record( 7, 'title', 'Original', 'Pushed', 'bloo' );

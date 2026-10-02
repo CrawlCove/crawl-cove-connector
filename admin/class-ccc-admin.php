@@ -138,6 +138,17 @@ class CCC_Admin {
 			</ol>
 
 			<h2><?php esc_html_e( 'Change log', 'crawl-cove-connector' ); ?></h2>
+			<?php if ( count( $log ) >= CCC_Change_Log::MAX_ENTRIES ) : ?>
+				<p>
+				<?php
+					printf(
+						/* translators: %s: number of entries the change log keeps */
+						esc_html__( 'The log keeps the most recent %s changes. It is full, so each new push drops the oldest entries (already-reverted ones first); dropped entries can no longer be reverted from here.', 'crawl-cove-connector' ),
+						esc_html( number_format_i18n( CCC_Change_Log::MAX_ENTRIES ) )
+					);
+				?>
+				</p>
+			<?php endif; ?>
 			<?php if ( ! $log ) : ?>
 				<p><?php esc_html_e( 'No changes pushed yet.', 'crawl-cove-connector' ); ?></p>
 			<?php else : ?>

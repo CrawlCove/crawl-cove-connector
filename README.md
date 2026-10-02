@@ -16,7 +16,7 @@ Crawl Cove Connector closes that loop. The [Crawl Cove desktop crawler](https://
 
 - **Bulk-apply title and meta description fixes** approved in the Crawl Cove app, in batches, with per-item results.
 - **Works with the four major WordPress SEO plugins**: Yoast SEO, Rank Math, SEOPress and AIOSEO. The connector detects which one is active and writes its native fields.
-- **Full change log with one-click revert**: every write records the previous value. Undo any change from **Tools → Crawl Cove** or from the app.
+- **Full change log with one-click revert**: every write records the previous value. Undo any change from **Tools → Crawl Cove** or from the app. The log keeps the most recent 1,000 entries (a title and a description on one post are two); once it is full, each new push drops the oldest entries, already-reverted ones first, and the Tools page says so.
 - **Dry-run mode** shows exactly what would change before anything is written.
 - **Authentication via WordPress core Application Passwords**: no extra accounts, no API keys stored by the plugin, revoke access any time from your user profile.
 - **Respects WordPress permissions**: a connected user can only change posts they are allowed to edit (`edit_post` checked per post).

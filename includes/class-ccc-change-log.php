@@ -16,9 +16,19 @@ defined( 'ABSPATH' ) || exit;
  */
 class CCC_Change_Log {
 
-	const OPTION      = 'ccc_change_log';
-	const SEQ_OPTION  = 'ccc_change_seq';
-	const MAX_ENTRIES = 200;
+	const OPTION     = 'ccc_change_log';
+	const SEQ_OPTION = 'ccc_change_seq';
+
+	/**
+	 * Entries kept. A title and a description on one post are two entries,
+	 * and the app sends up to CCC_Service::MAX_BATCH changes per request, so
+	 * 200 (the cap until 0.10.2) was one medium push: the oldest entries of
+	 * that same push were already gone — unrevertable — when it finished.
+	 * Worst case at the input caps (512 + 1024 chars per entry) is ~2MB in a
+	 * non-autoloaded option that only /apply, /revert and the Tools page
+	 * read; typical real titles and descriptions put it well under 500KB.
+	 */
+	const MAX_ENTRIES = 1000;
 
 	/**
 	 * All logged changes, newest first.
@@ -77,11 +87,38 @@ class CCC_Change_Log {
 		$log = self::all();
 		array_unshift( $log, $entry );
 		if ( count( $log ) > self::MAX_ENTRIES ) {
-			$log = array_slice( $log, 0, self::MAX_ENTRIES );
+			$log = self::evict( $log );
 		}
 		update_option( self::OPTION, $log, false );
 
 		return $entry;
+	}
+
+	/**
+	 * Bring an over-cap log back to MAX_ENTRIES.
+	 *
+	 * Already-reverted entries go first (oldest first): their "before" value
+	 * is back on the site and nothing further can be done with them, so they
+	 * are history, not a safety net. Only if the log is still over the cap
+	 * after that are the oldest live entries dropped. Order (newest first)
+	 * is preserved throughout.
+	 *
+	 * @param array $log Log entries, newest first, more than MAX_ENTRIES.
+	 * @return array Exactly MAX_ENTRIES entries, newest first.
+	 */
+	public static function evict( array $log ) {
+		$excess = count( $log ) - self::MAX_ENTRIES;
+		if ( $excess <= 0 ) {
+			return $log;
+		}
+		for ( $i = count( $log ) - 1; $i >= 0 && $excess > 0; $i-- ) {
+			if ( ! empty( $log[ $i ]['reverted'] ) ) {
+				unset( $log[ $i ] );
+				--$excess;
+			}
+		}
+		$log = array_values( $log );
+		return array_slice( $log, 0, self::MAX_ENTRIES );
 	}
 
 	/**
