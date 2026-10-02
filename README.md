@@ -206,6 +206,19 @@ returned for a TranslatePress site.
   already existed for the old string until a human re-translates it in
   TranslatePress's own editor.
 
+### The change log
+
+Every write `/apply` makes is recorded with its previous value, one entry per
+field (a title and a description on the same post are two entries), and
+`/changes` returns the log newest first. The log is a single non-autoloaded
+option capped at **1,000 entries**. When a new entry would take it past the
+cap, already-reverted entries are dropped first (oldest first) and only then
+the oldest live ones, so the entries that can still undo something survive
+longest. `/revert` with an id that has been dropped returns `ccc_not_found`
+(HTTP 404), the same as an id that never existed; the app should treat that
+as "no longer revertable from here", not as a transport error. The Tools page
+shows 100 rows a page and says so when the log is full.
+
 ### Caching plugins
 
 Every applied or reverted change tells WordPress (and, in turn, most page
