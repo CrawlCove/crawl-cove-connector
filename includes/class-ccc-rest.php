@@ -99,10 +99,18 @@ class CCC_Rest {
 	 * Permission callback shared by every route: the base requirement to use
 	 * the API at all. apply()/revert() re-check edit_post per post on top.
 	 *
+	 * @param WP_REST_Request|null $request Current request.
 	 * @return bool
 	 */
-	public static function can_use() {
-		return current_user_can( 'edit_posts' );
+	public static function can_use( $request = null ) {
+		if ( ! current_user_can( 'edit_posts' ) ) {
+			return false;
+		}
+		// Only an authorised call reaches here, so the Tools page's
+		// "last connected" row can never be moved by an anonymous request.
+		$route = $request instanceof WP_REST_Request ? $request->get_route() : '';
+		CCC_Connection::touch( wp_get_current_user()->user_login, $route, time() );
+		return true;
 	}
 
 	/**

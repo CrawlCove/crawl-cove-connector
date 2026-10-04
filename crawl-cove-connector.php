@@ -23,6 +23,7 @@ define( 'CCC_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 
 require_once CCC_PLUGIN_DIR . 'includes/class-ccc-adapter.php';
 require_once CCC_PLUGIN_DIR . 'includes/class-ccc-change-log.php';
+require_once CCC_PLUGIN_DIR . 'includes/class-ccc-connection.php';
 require_once CCC_PLUGIN_DIR . 'includes/class-ccc-term-resolver.php';
 require_once CCC_PLUGIN_DIR . 'includes/class-ccc-service.php';
 require_once CCC_PLUGIN_DIR . 'includes/class-ccc-rest.php';

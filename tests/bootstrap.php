@@ -421,4 +421,5 @@ class PLL_MO {
 
 require __DIR__ . '/../includes/class-ccc-adapter.php';
 require __DIR__ . '/../includes/class-ccc-change-log.php';
+require __DIR__ . '/../includes/class-ccc-connection.php';
 require __DIR__ . '/../includes/class-ccc-service.php';

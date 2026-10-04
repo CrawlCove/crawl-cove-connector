@@ -10,3 +10,4 @@ defined( 'WP_UNINSTALL_PLUGIN' ) || exit;
 
 delete_option( 'ccc_change_log' );
 delete_option( 'ccc_change_seq' );
+delete_option( 'ccc_last_connection' );

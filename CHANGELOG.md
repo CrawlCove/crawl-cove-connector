@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+- **Tools page shows whether the desktop app has connected.** The readmes
+  promised a "connection status" but the Status table only listed the
+  detected SEO plugin and the endpoint, so a wrong password or URL typo
+  looked like nothing at all. There is now a "Desktop app" row: "Not
+  connected yet" until an authenticated user calls a `crawlcove/v1` route,
+  then "Last connected <date> by <user>". Recorded in the permission
+  callback, so rejected and anonymous requests never count; stored as one
+  non-autoloaded option (`ccc_last_connection`), written at most once a
+  minute per user, removed on uninstall. Inbound only: no external request.
+  No REST contract change.
+
 ## 0.10.2 — 2026-10-02
 
 - **Change log keeps 1,000 entries, and evicts reverted ones first.** The

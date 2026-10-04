@@ -45,7 +45,7 @@ Every write is capability-checked, validated, length-capped and logged with its 
 
 == Screenshots ==
 
-1. Tools → Crawl Cove: connection status, the detected SEO plugin, setup steps, and the change log with one-click revert.
+1. Tools → Crawl Cove: whether the desktop app has connected, the detected SEO plugin, setup steps, and the change log with one-click revert.
 
 == Changelog ==
 

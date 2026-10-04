@@ -87,6 +87,7 @@ class CCC_Admin {
 	public static function render() {
 		$adapter = CCC_Adapter::detect();
 		$log     = CCC_Change_Log::all();
+		$conn    = CCC_Connection::last();
 		// Read-only display flags from our own redirect / pagination links
 		// (handle_revert() already nonce-checked the action that set the
 		// notice); nothing here changes state.
@@ -136,6 +137,24 @@ class CCC_Admin {
 					<tr>
 						<td><?php esc_html_e( 'REST endpoint', 'crawl-cove-connector' ); ?></td>
 						<td><code><?php echo esc_html( rest_url( CCC_Rest::NS ) ); ?></code></td>
+					</tr>
+					<tr>
+						<td><?php esc_html_e( 'Desktop app', 'crawl-cove-connector' ); ?></td>
+						<td>
+							<?php if ( $conn ) : ?>
+								<?php
+								printf(
+									/* translators: 1: date and time, 2: WordPress username */
+									esc_html__( 'Last connected %1$s by %2$s', 'crawl-cove-connector' ),
+									'<strong>' . esc_html( wp_date( 'j M Y H:i', $conn['time'] ) ) . '</strong>',
+									'<strong>' . esc_html( $conn['user'] ) . '</strong>'
+								);
+								?>
+							<?php else : ?>
+								<strong><?php esc_html_e( 'Not connected yet.', 'crawl-cove-connector' ); ?></strong>
+								<?php esc_html_e( 'Nothing has called the REST API. Follow the steps below.', 'crawl-cove-connector' ); ?>
+							<?php endif; ?>
+						</td>
 					</tr>
 				</tbody>
 			</table>

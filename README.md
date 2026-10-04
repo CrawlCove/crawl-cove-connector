@@ -219,6 +219,17 @@ longest. `/revert` with an id that has been dropped returns `ccc_not_found`
 as "no longer revertable from here", not as a transport error. The Tools page
 shows 100 rows a page and says so when the log is full.
 
+### The connection status
+
+Tools → Crawl Cove has a "Desktop app" row: "Not connected yet" until an
+authenticated user (one that passes the shared `edit_posts` check) calls any
+`crawlcove/v1` route, then "Last connected <date> by <user>". It is written
+from the routes' permission callback, so anonymous, wrong-password and
+under-privileged requests never move it. One small non-autoloaded option
+(`ccc_last_connection`: time, user, route), written at most once a minute per
+user and deleted on uninstall. No REST contract change; the app needs to do
+nothing, and a successful `GET /status` is enough to flip it.
+
 ### Caching plugins
 
 Every applied or reverted change tells WordPress (and, in turn, most page
