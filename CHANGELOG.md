@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.10.3 — 2026-10-04
 
 - **Tools page shows whether the desktop app has connected.** The readmes
   promised a "connection status" but the Status table only listed the

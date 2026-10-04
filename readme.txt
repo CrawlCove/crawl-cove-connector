@@ -4,7 +4,7 @@ Tags: seo, yoast, rank math, seopress, aioseo
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.10.2
+Stable tag: 0.10.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -48,6 +48,9 @@ Every write is capability-checked, validated, length-capped and logged with its 
 1. Tools → Crawl Cove: whether the desktop app has connected, the detected SEO plugin, setup steps, and the change log with one-click revert.
 
 == Changelog ==
+
+= 0.10.3 =
+* Tools → Crawl Cove now shows whether the desktop app has connected: "Not connected yet", or the time and user of the last authenticated call to the plugin's REST API. Stored in one small non-autoloaded option, removed on uninstall; rejected requests never count; no external requests.
 
 = 0.10.2 =
 * The change log keeps the most recent 1,000 entries (was 200, which one push over 100 posts could overflow, dropping — unrevertably — the earliest changes of that same push). Already-reverted entries are dropped before any live one, the cap is documented, and Tools → Crawl Cove says when the log is full. No REST change.
