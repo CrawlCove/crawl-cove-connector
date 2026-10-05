@@ -12,6 +12,8 @@ Every SEO crawler can find missing, duplicate, too-long or too-short titles and 
 
 Crawl Cove Connector closes that loop. The [Crawl Cove desktop crawler](https://crawlcove.com) sends the fixes you approved to your site over the WordPress REST API, and this plugin writes them into the native fields of whichever SEO plugin you already use. Nothing is duplicated or overridden at render time; your SEO plugin keeps working exactly as before, just with better values.
 
+The plugin is free. The Crawl Cove desktop app it works with is a paid crawler that starts with a free trial, no card needed: see [Crawl Cove pricing](https://crawlcove.com/pricing?utm_source=wordpress-plugin&utm_medium=referral&utm_campaign=github-readme).
+
 ## Features
 
 - **Bulk-apply title and meta description fixes** approved in the Crawl Cove app, in batches, with per-item results.
@@ -268,6 +270,9 @@ No. It writes the same post meta fields your SEO plugin owns (for example Yoast'
 
 **Can it change content or anything besides SEO fields?**
 No. It writes SEO titles and meta descriptions, nothing else, and only for posts the authenticated user can edit.
+
+**What happens to the change log if I delete the plugin?**
+Deleting the plugin (Plugins → Delete) removes everything it stored, including the change log, so the revert history goes with it. The titles and descriptions it applied stay in your SEO plugin as they are. Deactivating the plugin keeps the log.
 
 ## Development
 

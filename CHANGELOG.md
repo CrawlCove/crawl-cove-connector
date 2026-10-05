@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- **Both readmes now say the desktop app is paid.** The plugin is free, but
+  the Crawl Cove crawler it works with is a paid app with a free trial, and
+  neither readme said so: a reader saw "free, GPL" and found out at
+  /pricing. One sentence in the Description (readme.txt) and "Why this
+  plugin exists" (README.md), linking crawlcove.com/pricing. Plus an FAQ:
+  deleting the plugin removes its change log, so revert history goes with
+  it, while the applied titles and descriptions stay. A unit test pins
+  both, and that the Stable tag matches the plugin version. No code change.
+
 ## 0.10.3 — 2026-10-04
 
 - **Tools page shows whether the desktop app has connected.** The readmes
