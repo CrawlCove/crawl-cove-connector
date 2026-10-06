@@ -16,7 +16,7 @@
 # the right slug. GitHub's own "Download ZIP" of a branch unpacks to
 # crawl-cove-connector-main/ with tests/ and composer files inside, which is
 # why this script exists. The asset name is deliberately unversioned so
-# https://github.com/CrawlCove/crawl-cove-connector/releases/latest/download/crawl-cove-connector.zip
+# https://github.com/CrawlCove/wordpress-seo-connector/releases/latest/download/crawl-cove-connector.zip
 # is a stable link; the version is in the plugin header, readme.txt and the
 # release title.
 
