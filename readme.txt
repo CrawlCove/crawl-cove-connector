@@ -8,7 +8,7 @@ Stable tag: 0.10.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Push approved title/description fixes from Crawl Cove into Yoast, Rank Math, SEOPress or AIOSEO — with a change log and one-click revert.
+Push approved title/description fixes from Crawl Cove into Yoast, Rank Math, SEOPress or AIOSEO, with a change log and one-click revert.
 
 == Description ==
 
@@ -16,10 +16,10 @@ Crawl Cove Connector closes the loop between an SEO crawl and your CMS. Instead 
 
 The plugin is free. The Crawl Cove desktop app it works with is a paid crawler that starts with a free trial, no card needed: see [Crawl Cove pricing](https://crawlcove.com/pricing?utm_source=wordpress-plugin&utm_medium=referral&utm_campaign=wporg-readme).
 
-* Works with **Yoast SEO**, **Rank Math**, **SEOPress** and **AIOSEO** (writes their native fields — nothing is duplicated or overridden at render time).
+* Works with **Yoast SEO**, **Rank Math**, **SEOPress** and **AIOSEO** (writes their native fields, so nothing is duplicated or overridden at render time).
 * **You stay in control**: nothing is applied unless you approved it in the crawler, every change is logged with its previous value, and any change can be reverted with one click from Tools → Crawl Cove (or from the app). The log keeps the most recent 1,000 entries; once it is full, each new push drops the oldest (already-reverted ones first) and the Tools page says so.
 * **Dry-run mode** shows exactly what would change before anything is written.
-* Uses WordPress core **Application Passwords** for authentication — no extra accounts, no API keys stored by the plugin, revoke access any time from your profile.
+* Uses WordPress core **Application Passwords** for authentication: no extra accounts, no API keys stored by the plugin, revoke access any time from your profile.
 * Per-post (and per-term) capability checks: a connected user can only change posts, pages or taxonomy terms they are allowed to edit.
 
 The plugin is a small, auditable bridge (plain PHP, no framework, no external requests, no tracking, GPL). It exposes five REST routes under `crawlcove/v1`: status, resolve, apply, changes, revert.
@@ -43,7 +43,7 @@ No. It writes only the SEO title and meta description fields, only for changes y
 
 = Is this safe on a live site? =
 
-Every write is capability-checked, validated, length-capped and logged with its previous value; reverting is one click. Authentication is core WordPress Application Passwords over HTTPS — this plugin relies on WordPress core and your host for login rate-limiting/brute-force protection rather than implementing its own; a login-throttling plugin is recommended if you don't already run one.
+Every write is capability-checked, validated, length-capped and logged with its previous value; reverting is one click. Authentication is core WordPress Application Passwords over HTTPS. This plugin relies on WordPress core and your host for login rate-limiting/brute-force protection rather than implementing its own; a login-throttling plugin is recommended if you don't already run one.
 
 = What happens to the change log if I delete the plugin? =
 
@@ -56,52 +56,16 @@ Deleting the plugin (Plugins → Delete) removes everything it stored, including
 == Changelog ==
 
 = 0.10.3 =
-* Tools → Crawl Cove now shows whether the desktop app has connected: "Not connected yet", or the time and user of the last authenticated call to the plugin's REST API. Stored in one small non-autoloaded option, removed on uninstall; rejected requests never count; no external requests.
+* Tools → Crawl Cove shows whether the desktop app has connected, and when and by whom it last did.
 
 = 0.10.2 =
-* The change log keeps the most recent 1,000 entries (was 200, which one push over 100 posts could overflow, dropping — unrevertably — the earliest changes of that same push). Already-reverted entries are dropped before any live one, the cap is documented, and Tools → Crawl Cove says when the log is full. No REST change.
+* The change log keeps the most recent 1,000 entries (was 200). When it is full, entries you already reverted are dropped first, and the Tools page tells you.
 
 = 0.10.1 =
-* Tools → Crawl Cove now links to the Crawl Cove desktop app as its first setup step, for anyone who found the plugin before the crawler. That link, and the crawlcove.com links in this readme, carry plain `utm_*` query parameters so crawlcove.com can count visits that came from an installed copy of the plugin. The plugin itself still makes no requests, loads nothing remote and sends nothing about your site or users; the parameters are visible in the link and only travel if you click it.
+* Tools → Crawl Cove links to the Crawl Cove desktop app as its first setup step. Links to crawlcove.com carry visible `utm_*` parameters; the plugin itself still makes no requests and sends nothing.
 
 = 0.10.0 =
-* Fix: on a site using TranslatePress (the other major free multilingual plugin, alongside Polylang), every URL under a non-default language's prefix (e.g. `/fr/some-post/`, or the `/fr/` homepage) was `ccc_unresolvable` — not a homepage-only edge case, EVERY translated post/page/term URL. Root cause: TranslatePress manages its language-prefixed URLs with plain string manipulation, not a WordPress rewrite rule (confirmed against its own source — no `add_rewrite_rule()` call anywhere in the plugin), so core's own `url_to_postid()` and this plugin's rewrite-rule matching had no way to recognise the prefix at all. Architecturally simpler than Polylang: TranslatePress has no separate post or SEO storage per language — it translates the SAME content's rendered strings at output time — so the fix strips a recognised language slug from the URL before any resolution runs, and every existing post/term/homepage path then handles it exactly like its default-language counterpart. No REST contract change: there is nothing per-language to report or target here, unlike Polylang's `lang` field.
-* Security: added the new-in-0.9.0 `lang` field to the fuzzing matrix every other field already gets (type confusion, whitelist-bypass attempts, injection-shaped/oversized/null-byte values) — no bug found, now a permanent regression check.
+* TranslatePress: translated URLs such as `/fr/some-post/` now resolve to the right post, page or term.
 
-= 0.9.0 =
-* Real per-language homepage title/description support for multilingual sites (Polylang): the "your latest posts" homepage now resolves a non-default language's own URL (e.g. `/fr/`) to a target you can push a fix to, instead of `ccc_unresolvable`. New optional `lang` field on `/resolve`, `/apply` and `/revert`, additive to the existing `post_id: 0` contract — omitting it targets the plain/default-language homepage exactly as before. Yoast SEO only: verified against Polylang's own source that it is the only supported SEO plugin with a per-language homepage storage mechanism at all (its own Yoast-specific compatibility module); Rank Math, SEOPress and AIOSEO now report `ccc_language_unsupported` for a language-qualified homepage change instead of staying silent about it.
-
-= 0.8.1 =
-* Security/correctness fix: a taxonomy archive URL under a language-prefixed permalink (e.g. a multilingual plugin's `/fr/category/news/`, or in the worst case a bare `/fr/` itself) could resolve to the WRONG term — specifically, a rewrite rule belonging to an internal, non-public taxonomy that happens to share the same URL shape. Found and verified against a real Polylang install: its own internal "language" taxonomy (used for its language switcher, not real content) matched a French "your latest posts" homepage URL, silently writing an SEO fix to that internal term instead of the homepage — reported as a successful apply while the real page never changed. Both URL resolution and direct `post_id`-based apply/revert now require the matched taxonomy to be public, matching WordPress's own definition of "a real, browsable archive."
-
-= 0.8.0 =
-* Fix: an apply or revert to the homepage ("your latest posts" mode) or a taxonomy archive (category/tag/custom term) never told a page-caching plugin the page had changed — those targets write through an options/term-meta update with no post row for a caching plugin's usual save hook to fire against, so a pushed fix could sit behind a stale cached page for as long as the cache's lifetime. Now triggers a best-effort full-site purge for common caching plugins (WP Super Cache, W3 Total Cache, WP Rocket, WP Fastest Cache, LiteSpeed Cache) plus a plugin-agnostic action hook for anything else.
-* Fix: reverting a change to an ORDINARY post never re-saved it, so a revert didn't rebuild the SEO plugin's indexable or fire the cache-purge hook a normal apply already does — reverts now go through the exact same invalidation path applies do.
-
-= 0.7.0 =
-* SEOPress taxonomy term title/description support, extending 0.6.0's per-term target to a third adapter. Its term storage turned out to be the simplest of the three: plain term meta under the exact same key names as its post-level fields, no shared-array read-modify-write risk. AIOSEO stays unsupported, and not just unresearched — its own source confirms per-term SEO fields are a Pro-only feature, absent entirely from the free plugin this connector supports.
-
-= 0.6.0 =
-* Taxonomy term title/description support: fix one category, tag or custom-taxonomy archive's title/description without affecting every other term in that taxonomy. Yoast and Rank Math only for now — SEOPress and AIOSEO report the change as unsupported rather than guessing at their storage.
-* Fix: writing a Yoast term title/description could silently reset that term's OTHER Yoast fields (focus keyword, Open Graph/Twitter overrides, cornerstone flag) back to default — Yoast's own `WPSEO_Taxonomy_Meta::set_value()` helper isn't a true single-field patch for most fields. Now reads the term's full current settings first and writes them all back with only the intended field changed.
-
-= 0.5.0 =
-* SEOPress homepage title/description support, extending the "your latest posts" homepage target from 0.4.0 to a third adapter. AIOSEO stays unsupported — its "homepage" title/description turned out to read the same site-wide template used on every other page, so writing to it would change titles across the whole site, not just the homepage.
-
-= 0.4.0 =
-* Homepage title/description support for sites with no static front page set (Settings → Reading → "Your latest posts") — Yoast and Rank Math only for now; SEOPress and AIOSEO report the change as unsupported rather than silently doing nothing. A site with a static front page needs no change; that page's own title/description already worked exactly like any other page.
-* Rank Math's homepage title cannot be cleared to an empty value (verified against real Rank Math source: unlike every other field this plugin writes, it has no template fallback at render time, so clearing it would leave a genuinely blank browser-tab title) — set a new title instead, or clear it from Rank Math's own settings.
-
-= 0.3.0 =
-* AIOSEO adapter: title/description live in a custom DB table for this plugin (not postmeta like the other three), written through AIOSEO's own `Post::savePost()` model method — verified against AIOSEO 4.9 source that this only touches the columns given, and confirmed against a real install that it doesn't reset a post's other AIOSEO settings (social titles, etc).
-
-= 0.2.0 =
-* SEOPress adapter: writes `_seopress_titles_title` / `_seopress_titles_desc`, the same postmeta SEOPress's own admin metabox saves to and deletes on empty (verified against SEOPress 10.2 source).
-
-= 0.1.1 =
-* Fix: `/resolve` could report a nonexistent post as successfully resolved for a numeric URL like `?p=999` — WordPress core's `url_to_postid()` returns that id even with no matching post; now verified before returning.
-* Real-WordPress integration test harness (Rank Math and Yoast, SQLite, all five REST routes) and a security pass (auth, capability matrix, payload fuzzing) — no vulnerabilities found.
-* PHPCS clean against WordPress-Extra + WordPress-Docs; POT file for translators.
-
-= 0.1.0 =
-* First release: Yoast SEO and Rank Math adapters, REST API (status/resolve/apply/changes/revert), dry-run, change log with revert, admin page under Tools.
+= 0.1.0 to 0.9.0 =
+* Released on GitHub only. Highlights: adapters for Yoast SEO, Rank Math, SEOPress and AIOSEO; homepage and category/tag archive titles and descriptions (support varies by SEO plugin); Polylang per-language homepage with Yoast; WooCommerce products and categories; cache purge for common caching plugins after a change. The full history is in [CHANGELOG.md](https://github.com/CrawlCove/wordpress-seo-connector/blob/main/CHANGELOG.md).

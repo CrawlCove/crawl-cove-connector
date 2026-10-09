@@ -40,4 +40,20 @@ class ReadmeTest extends TestCase {
 		// The FAQ is only true while uninstall.php really deletes the log.
 		$this->assertStringContainsString( "delete_option( 'ccc_change_log' );", $this->file( 'uninstall.php' ) );
 	}
+
+	public function test_readmes_carry_no_em_dashes_outside_code_blocks() {
+		foreach ( array( 'readme.txt', 'README.md' ) as $name ) {
+			$prose = preg_replace( '/^```.*?^```/ms', '', $this->file( $name ) );
+			$this->assertStringNotContainsString( "\u{2014}", $prose, $name );
+		}
+	}
+
+	public function test_wordpress_org_changelog_stays_short() {
+		$text = $this->file( 'readme.txt' );
+		$this->assertNotFalse( strpos( $text, '== Changelog ==' ) );
+		$changelog = substr( $text, strpos( $text, '== Changelog ==' ) );
+
+		$this->assertLessThan( 250, str_word_count( $changelog ) );
+		$this->assertStringContainsString( 'CHANGELOG.md', $changelog );
+	}
 }

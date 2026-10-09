@@ -1,4 +1,4 @@
-# Crawl Cove Connector — WordPress SEO Plugin for Bulk Title & Meta Description Fixes
+# Crawl Cove Connector: WordPress SEO Plugin for Bulk Title & Meta Description Fixes
 
 The official WordPress companion plugin for [Crawl Cove](https://crawlcove.com/?utm_source=wordpress-plugin&utm_medium=referral&utm_campaign=github-readme), the desktop SEO crawler. Push approved page title and meta description fixes from your SEO audit straight into **Yoast SEO**, **Rank Math**, **SEOPress** or **All in One SEO (AIOSEO)**, with a full change log and one-click revert.
 
@@ -48,19 +48,19 @@ Safety model:
 ### The homepage target (`post_id: 0`)
 
 A site with no static front page set (Settings → Reading → **"Your latest posts"**)
-has no post to hold a title/description override for `/` — Yoast and Rank Math each
+has no post to hold a title/description override for `/`. Yoast and Rank Math each
 keep it in their own settings instead. `/resolve` reports the site root as
 `post_id: 0` in that case (a static front page still resolves to its own real
-post id, exactly like any other page — nothing changes there); pass `post_id: 0`
+post id, exactly like any other page, so nothing changes there); pass `post_id: 0`
 back to `/apply` or `/revert` to target it.
 
 - **Supported adapters**: Yoast SEO, Rank Math and SEOPress. AIOSEO changes to
-  `post_id: 0` fail with `ccc_home_unsupported` — the change is reported, not
+  `post_id: 0` fail with `ccc_home_unsupported`: the change is reported, not
   silently dropped. AIOSEO isn't just unresearched: its "homepage" title and
   description read the *same* site-wide template used to fill in every other
   page's title/description, so writing to it to "fix the homepage" would
   silently change titles across the whole site, not just `/`.
-- **Capability**: `manage_options`, not `edit_post` — there is no post to check
+- **Capability**: `manage_options`, not `edit_post`. There is no post to check
   `edit_post` against, and Settings → Reading (where this value lives natively)
   already requires it.
 - **Rank Math's homepage title cannot be cleared**: unlike every other
@@ -72,42 +72,43 @@ back to `/apply` or `/revert` to target it.
   Rank Math's own homepage description, which do fall back safely. Set a new
   title instead of clearing it, or clear it from Rank Math's own settings page.
 - Sending `post_id: 0` on a site that **does** have a static front page returns
-  `ccc_no_homepage_target` — pass that page's own post id instead.
+  `ccc_no_homepage_target`; pass that page's own post id instead.
 - On a Polylang site, `post_id: 0` can also carry an optional `lang` field
-  to target a non-default language's own homepage — see
-  [Multilingual sites](#multilingual-sites-polylang-wpml-etc) below.
+  to target a non-default language's own homepage (see
+  [Multilingual sites](#multilingual-sites-polylang-wpml-etc) below).
 
 ### The taxonomy term target (a negative `post_id`)
 
 A category, tag or custom-taxonomy archive (e.g. `/category/news/`) has no
-post to hold a title/description override — Yoast, Rank Math and SEOPress
+post to hold a title/description override. Yoast, Rank Math and SEOPress
 each keep per-term SEO data in their own storage instead. `/resolve` reports
 a term archive URL as `post_id: -$term_id` (term ids are always positive, so
-a negative number is unambiguous and free to repurpose — the same trick
+a negative number is unambiguous and free to repurpose, the same trick
 `post_id: 0` already uses for the homepage); pass that same negative number
 back to `/apply` or `/revert` to target it.
 
 This is deliberately a **per-term** override, not the taxonomy's site-wide
 default title *template* (Settings the SEO plugin itself exposes, e.g.
 "Category archives" in Yoast's Search Appearance). A template change would
-affect every term in that taxonomy at once — wrong for a fix aimed at one
-crawled URL — so this plugin never touches it.
+affect every term in that taxonomy at once, which is wrong for a fix aimed at
+one crawled URL, so this plugin never touches it.
 
 - **Supported adapters**: Yoast SEO, Rank Math and SEOPress. AIOSEO changes
-  to a term fail with `ccc_term_unsupported` — the change is reported, not
+  to a term fail with `ccc_term_unsupported`: the change is reported, not
   silently dropped. AIOSEO isn't just unresearched: its own source confirms
   per-term SEO fields are a Pro-only feature (`app/Common/Main/
   BulkActions.php`: "Pro only. The term analysis columns live on the Pro
-  aioseo_terms table") — nothing exists to write to in the free plugin this
-  connector supports.
+  aioseo_terms table"), so nothing exists to write to in the free plugin
+  this connector supports.
 - **Capability**: `edit_term`, WordPress core's own meta capability for
-  editing a specific term — there is no post to check `edit_post` against.
+  editing a specific term, since there is no post to check `edit_post`
+  against.
   It maps through to the term's taxonomy (e.g. `manage_categories` for
   `category`/`post_tag`; a custom taxonomy can register its own capability
   type). Editor-role users have this by default; Author-role users do not.
 - Sending a negative `post_id` with no matching term returns `ccc_no_term`.
 - Unlike Rank Math's homepage title, clearing a term's title or description
-  to `''` is safe for all three supported adapters — each falls back to the
+  to `''` is safe for all three supported adapters: each falls back to the
   taxonomy's own default title template, verified against real source
   (Rank Math's `Paper\Taxonomy::title()`; Yoast's term-archive indexable
   presentation follows the same pattern as its homepage description;
@@ -121,21 +122,21 @@ See [SECURITY-NOTES.md](SECURITY-NOTES.md) for the full security pass (capabilit
 Nothing in this plugin special-cases a post type or taxonomy, so WooCommerce
 products (`post_type: product`) and product categories (the `product_cat`
 taxonomy, via the negative-`post_id` term target above) already work exactly
-like any other post/page or category — verified against a real WooCommerce
-install, not assumed from its being "just" a custom post type.
+like any other post/page or category. This was verified against a real
+WooCommerce install, not assumed from its being "just" a custom post type.
 
 One real difference from ordinary posts: **WooCommerce only grants product
 edit capabilities (`edit_products`, `edit_product_terms`, etc.) to the Shop
 Manager and Administrator roles, not Editor** (confirmed against
 WooCommerce's own `WC_Install::create_roles()` source). An Editor-role user
 who can push fixes to ordinary posts/pages will get `ccc_forbidden` on
-WooCommerce products/categories — connect as a Shop Manager or Administrator
+WooCommerce products/categories. Connect as a Shop Manager or Administrator
 if you want those pushed too. This is WooCommerce's own capability model,
 not a plugin limitation.
 
 ### Multilingual sites (Polylang, WPML, etc.)
 
-Ordinary translated content works with zero special handling — a post's
+Ordinary translated content works with zero special handling. A post's
 translation is its own real post, with its own `post_id` and its own SEO
 postmeta, so it resolves, applies and reverts exactly like any other post.
 The same is true for a translated category/tag term (each language's term
@@ -148,34 +149,34 @@ contract addition: an optional `lang` field, sent alongside `post_id: 0`.
 
 - `/resolve` reports a non-default language's homepage URL (for example
   `/fr/` under Polylang's directory URL mode) as `post_id: 0` with
-  `lang: "fr"` — the default language's own homepage still reports
+  `lang: "fr"`. The default language's own homepage still reports
   `lang: ""`, exactly as before this field existed. (An earlier version
-  either misresolved `/fr/` to the wrong internal target, or — after that
-  was fixed — reported it as `ccc_unresolvable`; both are now `post_id: 0`,
+  either misresolved `/fr/` to the wrong internal target or, once that
+  was fixed, reported it as `ccc_unresolvable`; both are now `post_id: 0`,
   see the changelog.) A static front page in another language is
   unaffected either way, since that's just an ordinary page with its own
   `post_id`.
 - To push a fix, send that same `lang` back: `{"post_id": 0, "lang": "fr",
   "title": "..."}` on `/apply`/`/revert`. Omitting `lang` (or sending your
   site's own default language code) targets the plain/default-language
-  homepage exactly as it always has — this is fully additive, nothing
+  homepage exactly as it always has. This is fully additive: nothing
   about the existing `post_id: 0` contract changed.
 - **Supported adapters: Yoast SEO only.** Verified against Polylang's own
   source: it ships a dedicated compatibility module *only* for Yoast
   (`integrations/wpseo/`, registering `title-home-wpseo`/
-  `metadesc-home-wpseo` with Polylang's own string-translation system) —
-  there is no such module for Rank Math, SEOPress or AIOSEO, because none
+  `metadesc-home-wpseo` with Polylang's own string-translation system).
+  There is no such module for Rank Math, SEOPress or AIOSEO, because none
   of them has a per-language slot to put a value into: their homepage
   title/description is one value shared across every language, full stop.
-  Sending `lang` to any of those three returns `ccc_language_unsupported`
-  — reported, not silently written as a site-wide change nobody asked for.
+  Sending `lang` to any of those three returns `ccc_language_unsupported`:
+  reported, not silently written as a site-wide change nobody asked for.
 - `lang` on any target other than `post_id: 0` returns
   `ccc_language_requires_home`. A `lang` that isn't one of the site's
   active Polylang language codes returns `ccc_no_such_language`; `lang`
   sent with no supported multilingual plugin active returns
   `ccc_multilingual_required`.
 - Pushing a fix to the **default**-language homepage target (`lang`
-  omitted) only ever affects your default language's title — verified
+  omitted) only ever affects your default language's title. It was verified
   against a real install that this does not corrupt or overwrite a
   non-default language's already-translated homepage title (Polylang's
   own string-translation system reattaches it to the new original string,
@@ -183,28 +184,28 @@ contract addition: an optional `lang` field, sent alongside `post_id: 0`.
 
 **TranslatePress is architecturally different from Polylang/WPML, and needs
 no `lang` field at all.** It has no separate post or SEO storage per
-language — it translates the SAME post's SAME Yoast/Rank Math/SEOPress/
+language. It translates the SAME post's SAME Yoast/Rank Math/SEOPress/
 AIOSEO postmeta at render time, by swapping the rendered *string* (its own
 gettext-style dictionary, keyed on the literal original text). There is
 nothing per-language for `lang` to mean here, so it's simply never sent or
 returned for a TranslatePress site.
 
 - A URL under TranslatePress's language prefix (e.g. `/fr/some-post/`, or
-  the `/fr/` homepage) resolves to the exact same target — the same
-  `post_id`, or `HOME_ID` — as its default-language counterpart, verified
+  the `/fr/` homepage) resolves to the exact same target (the same
+  `post_id`, or `HOME_ID`) as its default-language counterpart, verified
   end-to-end against a real install. Confirmed against TranslatePress's own
   source that this is safe rather than assumed: it manages the language
   prefix with plain string manipulation (`includes/class-url-converter.php`),
-  not a WordPress rewrite rule — there is no `add_rewrite_rule()` call
-  anywhere in the plugin — so there is no Polylang-style risk of colliding
+  not a WordPress rewrite rule (there is no `add_rewrite_rule()` call
+  anywhere in the plugin), so there is no Polylang-style risk of colliding
   with a real (or internal) taxonomy's own rewrite rule.
 - Before this was handled, EVERY URL under a non-default language's prefix
-  was `ccc_unresolvable` — not a homepage-only gap, every translated post,
+  was `ccc_unresolvable`: not a homepage-only gap, but every translated post,
   page, and term archive on the whole site. See the 0.10.0 changelog entry.
 - One consequence of TranslatePress's design, not a CCC bug: because its
   translation lookup is keyed on the literal original string, any edit to
-  that string — from this plugin, or from a site owner's own hand-edit in
-  the SEO plugin's metabox, no difference — orphans whatever translation
+  that string (from this plugin, or from a site owner's own hand-edit in
+  the SEO plugin's metabox, no difference) orphans whatever translation
   already existed for the old string until a human re-translates it in
   TranslatePress's own editor.
 
@@ -238,13 +239,13 @@ Every applied or reverted change tells WordPress (and, in turn, most page
 caching plugins) that the affected page is stale:
 
 - **An ordinary post or page**: re-saved via `wp_update_post()`, which fires
-  core's `clean_post_cache` action — the hook WP Super Cache, W3 Total
+  core's `clean_post_cache` action, the hook WP Super Cache, W3 Total
   Cache and similar plugins use to purge that page's cached HTML.
 - **The homepage (`post_id: 0`) or a taxonomy archive**: neither has a post
   row for `clean_post_cache` to fire against, so instead this plugin runs a
-  best-effort full-site cache purge — calling WP Super Cache's, W3 Total
+  best-effort full-site cache purge: it calls WP Super Cache's, W3 Total
   Cache's or WP Rocket's own public purge function if that plugin is
-  active, and firing WP Fastest Cache's and LiteSpeed Cache's own
+  active, and fires WP Fastest Cache's and LiteSpeed Cache's own
   documented `wpfc_clear_all_cache`/`litespeed_purge_all` action hooks.
 
 For anything else, hook the plugin-agnostic `ccc_after_uncached_write`

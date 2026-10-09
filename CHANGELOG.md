@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- **Readmes rewritten without em dashes, and a short wordpress.org
+  changelog.** readme.txt and README.md (including the repo's H1) now follow
+  the house style, with the sentences reworded rather than the dashes
+  swapped for hyphens. The readme.txt changelog is a few plain lines for
+  0.10.x plus one summary of the GitHub-only versions, linking here for the
+  full history (167 words, was 1,324). Unit tests keep both readmes free of
+  em dashes outside code blocks and that changelog under 250 words.
+
 - **Both readmes now say the desktop app is paid.** The plugin is free, but
   the Crawl Cove crawler it works with is a paid app with a free trial, and
   neither readme said so: a reader saw "free, GPL" and found out at
