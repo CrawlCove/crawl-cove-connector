@@ -259,7 +259,8 @@ translation system), so its homepage title stays one shared value across
 every language regardless of anything CCC does. A non-default-language
 "your latest posts" homepage is honestly `ccc_unresolvable` for now, not
 silently wrong. Real multilingual-aware homepage targeting would be a
-larger, separate feature, noted in BACKLOG.md and not rushed into this fix.
+larger, separate feature, not rushed into this fix (it shipped in v0.9.0,
+see below).
 
 ## Addendum, 26 Sept 2026 (Yoast homepage title + Polylang string translation: investigated, no bug)
 
@@ -301,8 +302,8 @@ not mean a non-default language's homepage is independently *reachable* by
 CCC. `resolve_url()` still can't discover `/fr/` as a target at all (fixed
 in v0.8.1 to fail cleanly as `ccc_unresolvable` rather than misresolve); a
 real French-homepage-specific fix would need Polylang-aware URL resolution
-that doesn't exist yet, tracked as an open BACKLOG.md item, not a safety
-concern.
+that did not exist at the time: a feature gap, not a safety concern (closed in
+v0.9.0, next addendum).
 
 ## Addendum, 26 Sept 2026 (real per-language homepage support, v0.9.0: new feature, security-reviewed)
 

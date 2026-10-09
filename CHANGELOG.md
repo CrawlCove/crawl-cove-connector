@@ -144,7 +144,7 @@
 
 - Real per-language "your latest posts" homepage title/description support
   for multilingual sites, closing the feature gap 0.8.1's safety fix
-  deliberately left open (see BACKLOG.md). `/resolve` now reports a
+  deliberately left open. `/resolve` now reports a
   non-default Polylang language's homepage URL (e.g. `/fr/` under
   directory URL mode) as `post_id: 0` with a new `lang: "fr"` field,
   instead of `ccc_unresolvable`; send that same `lang` back on `/apply`/
@@ -285,7 +285,7 @@
 - Taxonomy term title/description support: fix a single category, tag or
   custom-taxonomy archive's title/description without touching any other
   term in that taxonomy (the taxonomy-wide default TEMPLATE was explicitly
-  scoped out in BACKLOG.md, because a template fix would let one crawled-URL
+  scoped out, because a template fix would let one crawled-URL
   fix silently rewrite every other term's title). New negative post_id
   sentinel (`post_id = -$term_id`) across `/resolve`, `/apply`, `/revert`,
   the same "reuse the existing int slot" trick `HOME_ID` (0) already uses
@@ -427,7 +427,7 @@
   columns, and the only in-plugin write path is explicitly marked
   `@internal Not a public extension surface`. Needs its own integration
   harness before shipping, not a quick postmeta-style addition, so left for a
-  dedicated session (see BACKLOG.md).
+  dedicated session.
 
 ## 0.1.1 (2026-09-22)
 
