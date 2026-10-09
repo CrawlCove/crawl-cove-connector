@@ -11,7 +11,7 @@
   em dashes outside code blocks and that changelog under 250 words.
   CHANGELOG.md got the same rewrite (61 em dashes, version headings now
   read `## 0.10.3 (2026-10-04)`; the build and release scripts still find
-  them) and the same test.
+  them) and the same test, and so did SECURITY-NOTES.md (69).
 
 - **Both readmes now say the desktop app is paid.** The plugin is free, but
   the Crawl Cove crawler it works with is a paid app with a free trial, and

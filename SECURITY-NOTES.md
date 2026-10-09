@@ -1,27 +1,27 @@
-# Security pass — 22 Sept 2026
+# Security pass, 22 Sept 2026
 
 Run against a real WordPress install (SQLite drop-in, no MySQL), both Rank
 Math and Yoast SEO, over live HTTP with Application Password auth. Reproduce
-with `tests/integration/run.sh --adapter=rankmath|yoast` — it runs
+with `tests/integration/run.sh --adapter=rankmath|yoast`. It runs
 `checks.sh` (route behaviour, 22 checks) then `security-checks.sh` (this
 pass, 42 checks). Both adapters: 64/64 green.
 
 ## Scope
 
 - Every route (`status`, `resolve`, `apply`, `changes`, `revert`) confirmed
-  to require authentication — no route reachable without valid Application
+  to require authentication: no route is reachable without valid Application
   Password credentials, and a wrong password is rejected too.
 - Full capability matrix: subscriber (no `edit_posts`) blocked at all five
   routes with 403; author (`edit_posts`, not `edit_others_posts`) can act on
   their own posts but is `ccc_forbidden` on another user's post; editor
-  (`edit_others_posts`) can act on any post — all matching WordPress core's
-  own capability model, nothing bespoke in the plugin to get wrong.
+  (`edit_others_posts`) can act on any post. All of it matches WordPress core's
+  own capability model, with nothing bespoke in the plugin to get wrong.
 - `/apply` and `/resolve` fuzzed: wrong types (string/null/object/array where
   a string or array is expected), nested objects, non-numeric `post_id`,
   10k-character strings, exact length-cap boundaries (512/1024/50/100),
   `<script>` tags, a SQL-injection-shaped string, an embedded null byte, and
   deliberately truncated/malformed JSON. Every case returns a clean 4xx or a
-  per-item `ok:false` — no PHP warning, stack trace, or file path ever
+  per-item `ok:false`; no PHP warning, stack trace, or file path ever
   appears in a response body.
 - `/revert`: missing/non-numeric/negative/nonexistent `change_id` all handled
   without a crash (400 or 404, never 500).
@@ -38,7 +38,7 @@ pass, 42 checks). Both adapters: 64/64 green.
    "resolve: phantom numeric id (url_to_postid quirk) is unresolvable".
 
 2. **Observed, no code change needed**: WordPress's REST argument layer does
-   not 400 a scalar against a route arg declared `type => 'array'` — it
+   not 400 a scalar against a route arg declared `type => 'array'`. It
    silently `(array)`-casts it to a one-element array instead of rejecting
    the request. Both `/resolve`'s `urls` and `/apply`'s `changes` rely on
    this only as a first line of defense; the plugin's own `is_array()` /
@@ -50,34 +50,34 @@ pass, 42 checks). Both adapters: 64/64 green.
 3. **Confirmed safe, not a finding**: `sanitize_text_field()` (used on every
    title/description value) strips `<script>` and other tags before
    storage, and the admin page (`admin/class-ccc-admin.php`) escapes every
-   logged value with `esc_html()` on output — defense in depth on both ends,
-   no stored-XSS path found.
+   logged value with `esc_html()` on output: defense in depth on both ends,
+   and no stored-XSS path found.
 
 4. **Confirmed safe, not a finding**: capability checks (`current_user_can`)
    correctly deny `edit_post` for a non-existent post id, so even the
-   url_to_postid quirk in (1) could never have led to an unauthorized write
-   — `/apply` with a phantom post id returned `ccc_forbidden`, not a crash or
+   url_to_postid quirk in (1) could never have led to an unauthorized write:
+   `/apply` with a phantom post id returned `ccc_forbidden`, not a crash or
    a write. (1) was a read-side correctness bug in `/resolve`'s response,
    not a write-side authorization gap.
 
-## Addendum — 24 Sept 2026 (taxonomy term support, v0.6.0)
+## Addendum, 24 Sept 2026 (taxonomy term support, v0.6.0)
 
 Same harness, extended with `tests/integration/taxonomy-checks.sh` (16
 checks) covering the new negative-`post_id` term target across all four
 adapters, plain and pretty permalinks, and the `edit_term`/`manage_categories`
-capability boundary (author blocked, editor allowed — WordPress core's own
+capability boundary (author blocked, editor allowed: WordPress core's own
 model again, nothing bespoke). Two more real-WordPress-only findings, same
 class as finding 1 above (a core quirk / a plugin helper's own behaviour
 trusted too literally, not a vulnerability in this plugin's own code):
 
 5. **Fixed in code**: on a site with a static front page, `url_to_postid()`
    collapses *any* query string at the site root (not just the homepage's
-   own) to the front page's post id — `?cat=2` was resolving to the
+   own) to the front page's post id, so `?cat=2` was resolving to the
    homepage, not the category. `resolve_url()` now resolves query-string
    term targets (`CCC_Term_Resolver::resolve_plain_query_vars()`) *before*
    calling `url_to_postid()`, not after.
 6. **Fixed in code**: Yoast's own `WPSEO_Taxonomy_Meta::set_value()` is not
-   a true single-field patch — writing just a term's title (or just its
+   a true single-field patch. Writing just a term's title (or just its
    description) was silently resetting the other back to `''`, and would do
    the same to any other Yoast term setting a site owner had set by hand
    (focus keyword, Open Graph/Twitter overrides, cornerstone flag). Not an
@@ -87,20 +87,20 @@ trusted too literally, not a vulnerability in this plugin's own code):
    first (`get_term_meta()` with no `$meta` arg) and writing them all back
    with only the intended field changed.
 
-## Addendum — 26 Sept 2026 (WooCommerce + Multisite capability verification)
+## Addendum, 26 Sept 2026 (WooCommerce + Multisite capability verification)
 
 Two new standalone harnesses (`tests/integration/woocommerce-checks.sh`,
 `tests/integration/multisite-checks.sh`), same "prove it against a real
 install, don't trust the code read" discipline as the addenda above. No
 vulnerabilities found; one capability-model behavior worth recording here
 because it's exactly the kind of thing a site owner could mistake for a
-CCC bug (or a security hole in the other direction — an Editor who thinks
+CCC bug (or a security hole in the other direction: an Editor who thinks
 they can't touch products, when actually they simply lack the capability
 core already withholds):
 
 7. **Not a CCC issue, confirmed on the merits**: WooCommerce grants
    `edit_products`/`edit_product_terms` (and related capabilities) ONLY to
-   the Shop Manager and Administrator roles — verified against
+   the Shop Manager and Administrator roles, verified against
    `WC_Install::create_roles()` and `WC_Post_Types::register_taxonomies()`
    source, not assumed. CCC's `edit_post`/`edit_term` capability checks defer
    entirely to WordPress core's meta-capability system, so an Editor who can
@@ -111,16 +111,16 @@ core already withholds):
 8. **Multisite scoping confirmed, not assumed**: activating CCC + Rank Math
    on one subsite of a network and hitting the network root's REST API
    returns a genuine `rest_no_route` 404 (route doesn't exist there at all),
-   not a `ccc_forbidden`/`rest_forbidden` — confirming `register_rest_route()`
+   not a `ccc_forbidden`/`rest_forbidden`. That confirms `register_rest_route()`
    is correctly per-site (fires on each site's own `rest_api_init`) with no
    network-wide leakage, and that a write via the subsite's REST endpoint
    lands in that subsite's own postmeta table, never the network's shared
    tables.
 
-## Addendum — 26 Sept 2026 (caching-plugin interaction — a real bug, now fixed)
+## Addendum, 26 Sept 2026 (caching-plugin interaction: a real bug, now fixed)
 
 Investigated on the hypothesis that a caching plugin's own per-page purge
-hook might not fire for every CCC write path — not a security issue, but a
+hook might not fire for every CCC write path. Not a security issue, but a
 correctness one with the same "silent, invisible failure" shape worth this
 file's discipline. Confirmed real, not assumed: downloaded WP Super Cache's
 actual current-stable source from wordpress.org and read its cache-purge
@@ -128,30 +128,30 @@ functions directly (`wp-cache-phase2.php`) rather than guessing at its
 behavior.
 
 9. **Real bug, now fixed**: `wp_cache_post_edit()`/`wp_cache_post_change()`
-   — WP Super Cache's own functions, hooked to core's `clean_post_cache`
-   action — both `return` immediately when `$post_id === 0`, and neither is
+   (WP Super Cache's own functions, hooked to core's `clean_post_cache`
+   action) both `return` immediately when `$post_id === 0`, and neither is
    registered on any term-edit action at all. CCC's homepage (`post_id 0`)
    and taxonomy-archive (negative term-id sentinel) writes went through
    `update_option()`/term meta directly, with no `wp_update_post()` call to
-   fire `clean_post_cache` in the first place — so a site running WP Super
+   fire `clean_post_cache` in the first place, so a site running WP Super
    Cache (or any similarly-built caching plugin) kept serving a stale
    cached homepage or category/tag archive page after a desktop-app push,
    for as long as that page's cache lived. `CCC_Service::invalidate_caches_for()`
    now runs a best-effort full-site purge (WP Super Cache, W3 Total Cache,
    WP Rocket via `function_exists()`-guarded calls to their own public
    functions, plus WP Fastest Cache's and LiteSpeed Cache's own documented
-   action hooks — `wpfc_clear_all_cache`/`litespeed_purge_all`, neither of
+   action hooks `wpfc_clear_all_cache`/`litespeed_purge_all`, neither of
    which is a callable function despite the naming convention suggesting
    otherwise; confirmed against WP Fastest Cache's real downloaded source,
    which registers it with `add_action()`, not `function_exists()`-checkable
    at all) for these two target types, and always fires a new
    `ccc_after_uncached_write` action for anything not listed. Initially
    wrote `wpfc_clear_all_cache` as a `function_exists()` guard by pattern-
-   matching the others without checking its real source first — caught and
+   matching the others without checking its real source first; caught and
    fixed before commit by downloading WP Fastest Cache and grepping it,
    the same discipline as the rest of this file.
 10. **Second real bug found investigating the first**: `CCC_Change_Log::
-    revert()` never called `wp_update_post()` at all, for ANY target —
+    revert()` never called `wp_update_post()` at all, for ANY target,
     including an ordinary post. A reverted post's Yoast indexable went
     stale and no caching plugin learned the page changed, the exact defect
     class `apply()` already had a fix for (re-saving the post) that
@@ -164,42 +164,42 @@ stubs: `tests/integration/caching-checks.sh` uses an mu-plugin probe that
 logs real firings of `clean_post_cache` and a stand-in for WP Super Cache's
 own `wp_cache_clear_cache()` (name and signature taken from its real
 source, not guessed). Confirmed the harness genuinely catches the bug, not
-just exercises the happy path: reverted the fix locally and re-ran it first
-— 10 of 12 checks failed exactly as predicted, then re-ran with the fix
+just exercises the happy path: reverted the fix locally and re-ran it first:
+10 of 12 checks failed exactly as predicted, then re-ran with the fix
 restored for a clean 12/12.
 
-## Addendum — 26 Sept 2026 (Gutenberg/block-editor concurrent-edit check — investigated, no bug)
+## Addendum, 26 Sept 2026 (Gutenberg/block-editor concurrent-edit check: investigated, no bug)
 
 Tested a specific hypothesis the previous session's handoff flagged as
 worth checking: does having a post open in the block editor risk a stale
 sidebar value silently overwriting a CCC push? Real difference found
 between adapters first, via a live Gutenberg session (Playwright,
 `wp.data.select('core/editor').getCurrentPost().meta`): **Yoast SEO
-registers `_yoast_wpseo_title`/`_yoast_wpseo_metadesc` — the exact same
-postmeta keys CCC itself writes — as Gutenberg REST meta fields, visible
+registers `_yoast_wpseo_title`/`_yoast_wpseo_metadesc` (the exact same
+postmeta keys CCC itself writes) as Gutenberg REST meta fields, visible
 in the editor's own state. Rank Math does not** (its SEO panel doesn't
 appear in `post.meta` at all, so this class of risk doesn't apply to it).
 
 That raised a real question for Yoast: if an editor tab loads the OLD
 title into its meta store, CCC pushes a NEW title via REST while that tab
 sits open, and the user then saves the post for an unrelated reason (e.g.
-fixing a typo in the body) — does Gutenberg's `savePost()` resend its
+fixing a typo in the body), does Gutenberg's `savePost()` resend its
 stale copy of `meta` and clobber CCC's fresh write? **Tested against a
 real WordPress + real Yoast install, not assumed: no.** Editing post
 content (never touching the Yoast SEO panel) and calling
 `wp.data.dispatch('core/editor').savePost()` produced a PUT that changed
 `post_content` but left `_yoast_wpseo_title` in the database exactly as
-CCC had just set it — confirmed by reading the postmeta directly after
+CCC had just set it, confirmed by reading the postmeta directly after
 the save completed, not just by reading network traffic. Gutenberg only
 includes an attribute (including the whole `meta` object) in its save
 diff when that attribute was explicitly dispatched via `editPost()` in
 that browser session; merely having loaded a value into the store isn't
 enough. The only real collision left is the ordinary case of two edits to
-the SAME field in the same window — no different from any two concurrent
+the SAME field in the same window, no different from any two concurrent
 editors of one WordPress field, not a CCC-specific bug, and not pursued
 further. No code change needed.
 
-## Addendum — 26 Sept 2026 (multilingual-plugin URL resolution — a real bug, now fixed, v0.8.1)
+## Addendum, 26 Sept 2026 (multilingual-plugin URL resolution: a real bug, now fixed, v0.8.1)
 
 Investigated Polylang (the largest free WordPress multilingual plugin,
 700,000+ installs) as an untested compatibility surface, following the same
@@ -210,29 +210,29 @@ source from wordpress.org rather than guessing at its internals.
 11. **Real bug, now fixed**: `CCC_Term_Resolver::resolve_pretty_permalink()`
     accepted ANY rewrite-rule match that resolved to a taxonomy-archive
     query (`is_tax`/`is_category`/`is_tag`), with no check on whether that
-    taxonomy was actually `public` — unlike its own sibling method,
+    taxonomy was actually `public`, unlike its own sibling method
     `resolve_plain_query_vars()`, which only ever iterates
     `get_taxonomies(['public' => true])`. Confirmed against Polylang's real
     source (`src/translated-post.php`): Polylang registers its own internal
     "language" taxonomy (used for its language switcher) as
-    `public => false` / `publicly_queryable => true` / `query_var => 'lang'`
-    — publicly queryable so its own rewrite rule works, but explicitly not
+    `public => false` / `publicly_queryable => true` / `query_var => 'lang'`:
+    publicly queryable so its own rewrite rule works, but explicitly not
     public because it isn't real content. Under Polylang's default
     directory URL mode (default language at the root, others under `/xx/`),
-    that rewrite rule matches a bare `/fr/` — exactly the shape of a French
+    that rewrite rule matches a bare `/fr/`, exactly the shape of a French
     "your latest posts" homepage URL. Verified live against a real
     WordPress + real Polylang + real Rank Math install: resolving `/fr/`
     returned Polylang's own "French" language TERM (a negative-sentinel
     target CCC treats as fully editable) instead of the homepage or
     `ccc_unresolvable`. Applying a title through it reported `ok: true` and
-    genuinely wrote into Rank Math's term meta for that internal term —
-    **the desktop app would tell a user their homepage fix succeeded, and
+    genuinely wrote into Rank Math's term meta for that internal term.
+    **The desktop app would tell a user their homepage fix succeeded, and
     the real page would never change.** Silent-failure-reported-as-success
     is the worst class of bug for a plugin whose whole premise is "crawl,
     fix, push live, verify."
 12. **Same gap, second entry point**: `CCC_Service::validate_change()`
     accepted any existing term id for a negative `post_id`, with no
-    publicness check either — so even after fixing URL resolution, a
+    publicness check either, so even after fixing URL resolution, a
     caller passing `{"post_id": -5}` directly (bypassing `/resolve`
     entirely) could still reach the same internal term. Both entry points
     now require `get_taxonomy($term->taxonomy)->public` before accepting a
@@ -243,7 +243,7 @@ Verified against a real WordPress + real Rank Math + real Polylang install,
 not unit stubs alone: `tests/integration/polylang-checks.sh` (new,
 standalone, like woocommerce/multisite-checks.sh) proves the fix directly
 (a French homepage URL and a direct term-id apply attempt both now fail
-cleanly) and proves no regression on the things that must keep working —
+cleanly) and proves no regression on the things that must keep working:
 ordinary translated posts stay genuinely isolated per language, and a real
 (public) category taxonomy's own language-prefixed archive URL
 (`/fr/category/news/`) still resolves correctly. Full 4-adapter matrix
@@ -255,13 +255,13 @@ internal plumbing), not real per-language homepage/archive SEO targeting for
 multilingual sites. Rank Math itself has no Polylang integration at all
 (confirmed: only Yoast has a dedicated compat layer in Polylang's own
 source, wrapping its homepage title/description strings for Polylang's own
-translation system) — its homepage title stays one shared value across
+translation system), so its homepage title stays one shared value across
 every language regardless of anything CCC does. A non-default-language
 "your latest posts" homepage is honestly `ccc_unresolvable` for now, not
 silently wrong. Real multilingual-aware homepage targeting would be a
-larger, separate feature — noted in BACKLOG.md, not rushed into this fix.
+larger, separate feature, noted in BACKLOG.md and not rushed into this fix.
 
-## Addendum — 26 Sept 2026 (Yoast homepage title + Polylang string translation — investigated, no bug)
+## Addendum, 26 Sept 2026 (Yoast homepage title + Polylang string translation: investigated, no bug)
 
 Follow-up question raised by the addendum above: on a Yoast + Polylang site,
 does pushing a CCC homepage (`post_id: 0`) title/description write through
@@ -282,7 +282,7 @@ against the French language term's `_pll_strings_translations` term meta),
 then pushed a NEW English title/description through CCC's real `/apply`
 REST route (admin user, `manage_options`, the actual capability gate for
 `HOME_ID`). Result: **no corruption.** The raw `wpseo_titles` option now
-holds the new English strings (correct — CCC's write). Polylang's own
+holds the new English strings (correct: that is CCC's write). Polylang's own
 `pre_update_option_wpseo_titles`/`update_option_wpseo_titles` filters (the
 "step 1 filter out the update, step 2 reattach the old translation to the
 new original string" mechanism `PLL_Translate_Option::pre_update_option()`/
@@ -290,13 +290,13 @@ new original string" mechanism `PLL_Translate_Option::pre_update_option()`/
 `_pll_strings_translations` term meta still maps to the *same* French
 translation strings, now re-keyed to the new English original rather than
 lost. A site owner's French Yoast homepage title survives a CCC push to the
-English one untouched — safe by construction, not by luck: this is
+English one untouched. That is safe by construction, not by luck: this is
 literally the scenario `PLL_Translate_Option` exists to handle (any
 plugin/admin action that updates the option's raw value), CCC isn't doing
 anything unusual to it. No code change needed.
 
 Scope note, unchanged from the addendum above: this confirms CCC pushing to
-the DEFAULT language's homepage is safe on a Yoast+Polylang site — it does
+the DEFAULT language's homepage is safe on a Yoast+Polylang site. It does
 not mean a non-default language's homepage is independently *reachable* by
 CCC. `resolve_url()` still can't discover `/fr/` as a target at all (fixed
 in v0.8.1 to fail cleanly as `ccc_unresolvable` rather than misresolve); a
@@ -304,13 +304,13 @@ real French-homepage-specific fix would need Polylang-aware URL resolution
 that doesn't exist yet, tracked as an open BACKLOG.md item, not a safety
 concern.
 
-## Addendum — 26 Sept 2026 (real per-language homepage support, v0.9.0 — new feature, security-reviewed)
+## Addendum, 26 Sept 2026 (real per-language homepage support, v0.9.0: new feature, security-reviewed)
 
 The addendum above confirmed the DEFAULT language's homepage write was safe
 on a Yoast+Polylang site, but left the actual feature gap open: a
 non-default language's own homepage (`/fr/`) was `ccc_unresolvable`, not a
 target CCC could reach. This session closed that gap for Yoast (the only
-adapter with real per-language homepage storage — confirmed against
+adapter with real per-language homepage storage, confirmed against
 Polylang's own source: `src/integrations/` has a dedicated compat module
 only for Yoast, none for Rank Math/SEOPress/AIOSEO).
 
@@ -319,30 +319,30 @@ only for Yoast, none for Rank Math/SEOPress/AIOSEO).
 - New optional `lang` field on `/apply`/`/revert` change items. Validated
   before anything is written: must be a string, must name one of the
   site's own currently-active Polylang languages
-  (`in_array($lang, pll_languages_list(), true)` — not a bare "is this a
+  (`in_array($lang, pll_languages_list(), true)`, not a bare "is this a
   plausible-looking language code" regex), and is only accepted alongside
-  `post_id: 0` (`ccc_language_requires_home` otherwise) — so this can't be
+  `post_id: 0` (`ccc_language_requires_home` otherwise), so this can't be
   smuggled onto an ordinary post/term write to do anything unexpected
   there.
 - Capability check is unchanged: `manage_options`, gated exactly like the
   existing default-language homepage target, checked BEFORE the
-  language-specific adapter-support gate — a user who can't manage the
+  language-specific adapter-support gate. A user who can't manage the
   homepage at all can't discover adapter support by probing `lang` values
   either (same ordering `can_edit_target()` already enforced).
 - The write (`PLL_MO::import_from_db()`/`add_entry()`/`export_to_db()`)
   targets a `PLL_Language` object obtained via `PLL()->model->get_language(
   $lang)`, itself only reachable after the `in_array()` active-language
-  check above passes — an attacker-controlled `lang` string is never
+  check above passes, so an attacker-controlled `lang` string is never
   passed to Polylang's API directly without that allowlist check first
   (fuzzing-relevant: unicode/oversized/null-byte `lang` strings all fail
   the `in_array()` check the same as any other unrecognised code, same
   class of guard `security-checks.sh` already exercises for `post_id`).
 - `resolve_url()`'s new Polylang-language-home matching
   (`resolve_polylang_home_language()`) runs LAST, only after every existing
-  post/term resolution path has already missed — it cannot shadow or
+  post/term resolution path has already missed. It cannot shadow or
   pre-empt a real post/term match, only fill the specific gap that used to
   fall through to `ccc_unresolvable`.
-- Resolution itself (`/resolve`) is deliberately adapter-independent — it
+- Resolution itself (`/resolve`) is deliberately adapter-independent: it
   reports `lang` for a matched URL regardless of which SEO plugin is
   active, with `editable: false` for one that can't act on it. This is not
   an information leak beyond what `/resolve` already exposes for every
@@ -356,8 +356,8 @@ only for Yoast, none for Rank Math/SEOPress/AIOSEO).
   write leaves the raw (default-language) `wpseo_titles` option
   byte-for-byte untouched, and that reverting a French write restores
   Yoast's real fallback rendering (the default-language value, per real
-  gettext semantics — confirmed against a real install this is what an
-  untranslated string actually renders as, not a guess) rather than
+  gettext semantics, confirmed against a real install as what an
+  untranslated string actually renders, not a guess) rather than
   leaving anything blank or duplicated across languages.
 
 No new external requests, no new stored PII, no change to the
@@ -365,18 +365,18 @@ authentication model. Full write-up (design rationale, REST contract,
 adapter-support matrix) in README.md's "Multilingual sites" section and
 CHANGELOG.md's 0.9.0 entry.
 
-## Addendum — 27 Sept 2026 (TranslatePress URL resolution — a real bug, now fixed, v0.10.0)
+## Addendum, 27 Sept 2026 (TranslatePress URL resolution: a real bug, now fixed, v0.10.0)
 
 Researched whether TranslatePress (the other major free multilingual
 plugin, alongside Polylang) needed the same kind of safety/feature work as
-Polylang got in the two addenda above — not assumed either way, verified
+Polylang got in the two addenda above. Not assumed either way: verified
 against its own downloaded source and then against a real install.
 
 - **Architecturally the opposite problem from Polylang.** Polylang creates
   genuinely separate content (a real `post_id` per translation) plus a real
   taxonomy whose rewrite rule once collided with CCC's own resolution (see
   the 26 Sept addendum above). TranslatePress has no separate post or SEO
-  storage per language at all — it translates the SAME post's SAME Yoast/
+  storage per language at all. It translates the SAME post's SAME Yoast/
   Rank Math/SEOPress/AIOSEO postmeta at render time, by swapping the
   rendered *string* via its own gettext-style dictionary tables
   (`includes/queries/class-gettext-table-creation.php`), keyed on the
@@ -384,49 +384,49 @@ against its own downloaded source and then against a real install.
 - **Real bug found, not a homepage-only edge case.** Confirmed against
   TranslatePress's own source that it manages its language-prefixed URLs
   (e.g. `/fr/some-post/`) with plain string manipulation
-  (`includes/class-url-converter.php`) — there is no `add_rewrite_rule()`
+  (`includes/class-url-converter.php`); there is no `add_rewrite_rule()`
   call anywhere in the plugin. `url_to_postid()` and `CCC_Term_Resolver`'s
   own matching both work by matching WordPress's *compiled rewrite rules*,
   so a prefix that was never registered as one is invisible to them. Proved
   against a real WordPress + Yoast + TranslatePress install
   (`tests/integration/translatepress-checks.sh`) before assuming this from
-  source alone: EVERY URL under the non-default language's prefix —
-  ordinary posts, the homepage, term archives — was `ccc_unresolvable`.
+  source alone: EVERY URL under the non-default language's prefix
+  (ordinary posts, the homepage, term archives) was `ccc_unresolvable`.
   For a plugin whose whole point is "crawl a URL, push a fix, verify it
   went live," that's a real coverage gap on a very popular free plugin, not
   a narrow one.
 - **Fix is simpler than Polylang's**, because there's no separate content to
   target: `CCC_Service::strip_translatepress_language_prefix()` reads
   TranslatePress's own `trp_settings` option (`default-language`,
-  `url-slugs` — it ships no public `@api` equivalent of Polylang's
+  `url-slugs`; it ships no public `@api` equivalent of Polylang's
   `pll_home_url()`) and strips a recognised non-default language's slug
   from the URL *before* any resolution logic runs. Every existing post/
   term/homepage path then handles the stripped URL exactly like its
-  default-language counterpart — no new REST field, `lang` stays `''`
+  default-language counterpart. No new REST field: `lang` stays `''`
   throughout correctly, because there is genuinely nothing per-language
   here for it to mean.
 - Verified end-to-end, not just from source: `translatepress-checks.sh`
-  (9/9) — a post URL and its `/fr/`-prefixed counterpart resolve to the
+  (9/9): a post URL and its `/fr/`-prefixed counterpart resolve to the
   same `post_id`; the homepage and its `/fr/` counterpart both resolve to
   `HOME_ID`; a CCC title write reads back identically from either URL.
   Confirmed the harness genuinely catches the regression by reverting the
   fix locally first (5/9 failed, as predicted, matching this project's own
   practice for every other integration harness).
-- **One consequence documented, not fixed — it isn't a CCC bug.**
+- **One consequence documented, not fixed, because it isn't a CCC bug.**
   TranslatePress's translation lookup is keyed on the literal original
-  string, so any edit to that string — from CCC, or from a site owner's
-  own hand-edit in the SEO plugin's metabox, no difference — orphans
+  string, so any edit to that string (from CCC, or from a site owner's
+  own hand-edit in the SEO plugin's metabox, no difference) orphans
   whatever translation already existed until a human re-translates it in
   TranslatePress's own editor. This is TranslatePress's own designed
   behaviour for any edit source, not something this plugin introduces or
   could avoid.
 - The pre-existing `lang` field's own fuzzing matrix (type confusion,
-  whitelist-bypass, injection/oversized/null-byte values — see the
+  whitelist-bypass, injection/oversized/null-byte values; see the
   previous addendum) was extended this session too:
   `polylang-yoast-home-checks.sh` gained 12 checks covering it, since it
-  shipped in 0.9.0 but was never added to that matrix. No bug found —
+  shipped in 0.9.0 but was never added to that matrix. No bug found:
   `is_string()` + a strict `in_array()` whitelist already rejected
-  everything — now a permanent regression check.
+  everything. It is now a permanent regression check.
 
 No new external requests, no new stored PII, no change to the
 authentication model. Full write-up in README.md's "Multilingual sites"
@@ -435,7 +435,7 @@ section and CHANGELOG.md's 0.10.0 entry.
 ## Not covered here (separate backlog items)
 
 - PHPCS / WordPress-Coding-Standards pass.
-- CSRF: not applicable — the REST API here is authenticated by Application
+- CSRF: not applicable. The REST API here is authenticated by Application
   Passwords (Basic Auth), which WordPress core exempts from the cookie-nonce
   CSRF check by design (same model core itself uses for the REST API).
 - Rate limiting / brute-force protection on Application Password auth: this
