@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Crawl Cove Connector
  * Plugin URI:  https://crawlcove.com/wordpress-plugin
- * Description: Receive approved title and meta description fixes from the Crawl Cove desktop crawler and apply them to Yoast SEO, Rank Math, SEOPress or AIOSEO — with a full change log and one-click revert.
+ * Description: Receive approved title and meta description fixes from the Crawl Cove desktop crawler and apply them to Yoast SEO, Rank Math, SEOPress or AIOSEO, with a full change log and one-click revert.
  * Version:     0.10.3
  * Requires at least: 6.2
  * Requires PHP: 7.4

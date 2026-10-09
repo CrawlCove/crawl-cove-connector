@@ -54,7 +54,7 @@ class CCC_Service {
 			return new WP_Error(
 				'ccc_wrong_site',
 				/* translators: %s: the hostname of this WordPress site */
-				sprintf( __( 'URL is not on this site (%s) — check the site profile in Crawl Cove.', 'crawl-cove-connector' ), $site_host ),
+				sprintf( __( 'URL is not on this site (%s). Check the site profile in Crawl Cove.', 'crawl-cove-connector' ), $site_host ),
 				array( 'status' => 400 )
 			);
 		}
@@ -298,7 +298,7 @@ class CCC_Service {
 				'lang'       => $lang,
 				'post_title' => '' !== $lang
 					/* translators: %s: Polylang language slug, e.g. "fr" */
-					? sprintf( __( 'Homepage (latest posts) — %s', 'crawl-cove-connector' ), $lang )
+					? sprintf( __( 'Homepage (latest posts, %s)', 'crawl-cove-connector' ), $lang )
 					: __( 'Homepage (latest posts)', 'crawl-cove-connector' ),
 				'permalink'  => ( '' !== $lang && function_exists( 'pll_home_url' ) ) ? pll_home_url( $lang ) : home_url( '/' ),
 				'editable'   => self::can_edit_target( $post_id ) && $adapter->supports_home() && ( '' === $lang || $adapter->supports_language_home() ),
@@ -362,7 +362,7 @@ class CCC_Service {
 			$post_id = (int) $item['post_id'];
 			if ( self::HOME_ID === $post_id ) {
 				if ( 'page' === get_option( 'show_on_front' ) ) {
-					return new WP_Error( 'ccc_no_homepage_target', __( 'This site has a static front page — pass that page\'s own post_id instead of 0.', 'crawl-cove-connector' ), array( 'status' => 400 ) );
+					return new WP_Error( 'ccc_no_homepage_target', __( 'This site has a static front page. Pass that page\'s own post_id instead of 0.', 'crawl-cove-connector' ), array( 'status' => 400 ) );
 				}
 			} elseif ( $post_id < 0 ) {
 				$term = get_term( -$post_id );
@@ -555,7 +555,7 @@ class CCC_Service {
 						'to'      => '',
 						'changed' => false,
 						'error'   => 'ccc_home_title_clear_unsupported',
-						'message' => __( "This SEO plugin's homepage title has no automatic fallback — clearing it would leave a blank browser-tab title. Set a new title instead, or clear it from the SEO plugin's own settings directly.", 'crawl-cove-connector' ),
+						'message' => __( "This SEO plugin's homepage title has no automatic fallback, so clearing it would leave a blank browser-tab title. Set a new title instead, or clear it from the SEO plugin's own settings directly.", 'crawl-cove-connector' ),
 					);
 					continue;
 				}

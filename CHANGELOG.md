@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- **No em dashes in what the plugin itself says.** Six strings reworded:
+  the plugin header description (the Plugins screen), the Tools page's
+  "None" SEO-plugin line, and four REST error messages the desktop app
+  shows (no SEO plugin, URL not on this site, static front page, Rank Math
+  homepage title clear). The Polylang homepage label is now
+  "Homepage (latest posts, fr)". Error codes are unchanged, so the app
+  needs nothing. POT regenerated. A unit test tokenises the plugin's PHP
+  and fails on an em dash in any string literal or inline HTML (comments
+  exempt, the lone empty-cell placeholder allowed).
+
 - **Readmes rewritten without em dashes, and a short wordpress.org
   changelog.** readme.txt and README.md (including the repo's H1) now follow
   the house style, with the sentences reworded rather than the dashes
