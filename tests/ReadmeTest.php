@@ -41,8 +41,9 @@ class ReadmeTest extends TestCase {
 		$this->assertStringContainsString( "delete_option( 'ccc_change_log' );", $this->file( 'uninstall.php' ) );
 	}
 
-	public function test_readmes_carry_no_em_dashes_outside_code_blocks() {
-		foreach ( array( 'readme.txt', 'README.md' ) as $name ) {
+	public function test_public_docs_carry_no_em_dashes_outside_code_blocks() {
+		// CHANGELOG.md is linked from the wordpress.org changelog.
+		foreach ( array( 'readme.txt', 'README.md', 'CHANGELOG.md' ) as $name ) {
 			$prose = preg_replace( '/^```.*?^```/ms', '', $this->file( $name ) );
 			$this->assertStringNotContainsString( "\u{2014}", $prose, $name );
 		}
