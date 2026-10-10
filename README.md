@@ -45,6 +45,45 @@ Safety model:
 - Empty string means "remove the override, fall back to the SEO plugin's template".
 - No external requests, no tracking, no data leaves the site.
 
+### Finding the REST root (do not hard-code `/wp-json/`)
+
+WordPress serves its REST API at one of three URL shapes, chosen by the
+site's permalink setting, and the plugin's routes live under whichever one
+the site uses:
+
+| Permalink setting | REST root | `/status` for example |
+|---|---|---|
+| Pretty (`/%postname%/` etc.) | `https://example.com/wp-json/` | `https://example.com/wp-json/crawlcove/v1/status` |
+| Pretty, index-style (IIS, some nginx) | `https://example.com/index.php/wp-json/` | `https://example.com/index.php/wp-json/crawlcove/v1/status` |
+| Plain (`?p=123`, the WordPress default) | `https://example.com/index.php?rest_route=/` | `https://example.com/index.php?rest_route=/crawlcove/v1/status` |
+
+A client that only builds `<site>/wp-json/crawlcove/v1/...` works on the
+first row only. On a plain-permalink site that URL is not routed to
+WordPress at all: Apache returns its own HTML 404 and a `php -S` or
+misconfigured host returns the HTML front page with a 200, so "install the
+plugin" or "could not reach that site" would be the wrong diagnosis. The
+plugin is installed and fine; the client asked the wrong URL.
+
+Discover the root instead. Every WordPress front-end response carries a
+`Link` header naming it, so one unauthenticated request to the site URL is
+enough:
+
+```
+GET https://example.com/
+Link: <https://example.com/index.php?rest_route=/>; rel="https://api.w.org/"
+```
+
+Use that root plus `crawlcove/v1/<route>`. When the root ends in `?rest_route=/`
+the route is appended to the query value (`?rest_route=/crawlcove/v1/status`),
+never as a second path. If the `Link` header is missing (a security plugin
+can strip it), try `<site>/wp-json/crawlcove/v1/status` and then
+`<site>/index.php?rest_route=/crawlcove/v1/status`, and treat any 2xx whose
+body is not JSON as "not the REST API", not as success. The
+`?rest_route=` form works on every permalink setting, so it is the safe last
+resort. The integration harness runs the plugin on a plain-permalink site
+and checks both the advertised root and the `?rest_route=` form
+(`tests/integration/rest-root-checks.sh`).
+
 ### The homepage target (`post_id: 0`)
 
 A site with no static front page set (Settings → Reading → **"Your latest posts"**)
