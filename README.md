@@ -80,8 +80,8 @@ can strip it), try `<site>/wp-json/crawlcove/v1/status` and then
 `<site>/index.php?rest_route=/crawlcove/v1/status`, and treat any 2xx whose
 body is not JSON as "not the REST API", not as success. The
 `?rest_route=` form works on every permalink setting, so it is the safe last
-resort. The integration harness runs the plugin on a plain-permalink site
-and checks both the advertised root and the `?rest_route=` form
+resort. The integration harness checks the `Link` header and the route under
+it on both the plain and the pretty permalink setting
 (`tests/integration/rest-root-checks.sh`).
 
 ### The homepage target (`post_id: 0`)

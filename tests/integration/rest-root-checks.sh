@@ -6,8 +6,11 @@
 # (review ticket #200, 10 Oct 2026). README "Finding the REST root" tells
 # clients to read the Link header on the site URL. This pins that contract
 # against a real WordPress: the header is present, it names the root the
-# site actually uses, and crawlcove/v1 answers under that root. Unit stubs
-# have no rest_output_link_header() and no permalink setting to vary.
+# site actually uses, and crawlcove/v1 answers under that root, on BOTH the
+# plain (?rest_route=) and the pretty (/wp-json/) permalink setting. php -S
+# falls back to index.php for any path with no file, so /wp-json/... reaches
+# WordPress here the way it does on a rewrite-enabled Apache/nginx. Unit
+# stubs have no rest_output_link_header() and no permalink setting to vary.
 
 set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -16,6 +19,18 @@ source "$HERE/lib.sh"
 : "${CCC_SITE:?}" "${CCC_CACHE:?}"
 WPCLI=(php "$CCC_CACHE/wp-cli.phar")
 wp() { "${WPCLI[@]}" "$@" --path="$CCC_SITE"; }
+
+ORIGINAL_STRUCTURE="$(wp option get permalink_structure 2>/dev/null || true)"
+restore_permalinks() {
+  wp rewrite structure "$ORIGINAL_STRUCTURE" --quiet 2>/dev/null || true
+  wp eval 'flush_rewrite_rules();' >/dev/null 2>&1 || true
+}
+trap restore_permalinks EXIT
+
+# root_of <url>: the REST root advertised by the Link header on that URL.
+root_of() {
+  curl -s -D - -o /dev/null --max-time 10 "$1" | tr -d '\r' | grep -i '^link:' | grep -i 'rel="https://api.w.org/"' | head -1 | sed -n 's/.*<\([^>]*\)>.*/\1/p'
+}
 
 STRUCTURE="$(wp option get permalink_structure 2>/dev/null || true)"
 if [[ -z "$STRUCTURE" ]]; then
@@ -61,7 +76,7 @@ fi
 OUT="$(curl -s --max-time 10 -w '\n%{http_code}' "${ROOT}crawlcove/v1/status")"
 check "anonymous GET <root>crawlcove/v1/status is 401 JSON (route exists, auth required)" 401 "$(echo "$OUT" | tail -1)" '.code' rest_forbidden "$(echo "$OUT" | sed '$d')"
 
-echo "-- the hard-coded /wp-json/ shape is not the REST API here --"
+echo "-- the hard-coded /wp-json/ shape is not the REST API on plain permalinks --"
 OUT="$(curl -s -L -u "$EDITOR" --max-time 10 -w '\n%{http_code}' "$CCC_URL/wp-json/crawlcove/v1/status")"
 HTTP="$(echo "$OUT" | tail -1)"
 BODY="$(echo "$OUT" | sed '$d')"
@@ -69,6 +84,31 @@ if ! echo "$BODY" | jq -e '.plugin_version' >/dev/null 2>&1; then
   PASS=$((PASS+1)); echo "  ok   /wp-json/crawlcove/v1/status does not return the status JSON on this site (http=$HTTP), so discovery is required"
 else
   FAIL=$((FAIL+1)); echo "  FAIL /wp-json/ unexpectedly served the status JSON on a plain-permalink site"
+fi
+
+echo "-- pretty permalinks: the advertised root moves to /wp-json/ and the route follows it --"
+wp rewrite structure '/%postname%/' --quiet
+wp eval 'flush_rewrite_rules();' >/dev/null
+ROOT="$(root_of "$CCC_URL/")"
+if [[ "$ROOT" == "$CCC_URL/wp-json/" ]]; then
+  PASS=$((PASS+1)); echo "  ok   advertised root is now $ROOT"
+else
+  FAIL=$((FAIL+1)); echo "  FAIL advertised root '$ROOT' is not $CCC_URL/wp-json/"
+fi
+OUT="$(curl -s -u "$EDITOR" --max-time 10 -w '\n%{http_code}' "${ROOT}crawlcove/v1/status")"
+check "editor GET /wp-json/crawlcove/v1/status is 200 JSON with plugin_version" 200 "$(echo "$OUT" | tail -1)" '.plugin_version | type' string "$(echo "$OUT" | sed '$d')"
+OUT="$(curl -s --max-time 10 -w '\n%{http_code}' "${ROOT}crawlcove/v1/status")"
+check "anonymous GET /wp-json/crawlcove/v1/status is 401 JSON" 401 "$(echo "$OUT" | tail -1)" '.code' rest_forbidden "$(echo "$OUT" | sed '$d')"
+# The ?rest_route= form is the universal fallback: it must keep working here.
+OUT="$(curl -s -u "$EDITOR" --max-time 10 -w '\n%{http_code}' "$CCC_URL/index.php?rest_route=/crawlcove/v1/status")"
+check "editor GET index.php?rest_route=/crawlcove/v1/status still 200 under pretty permalinks" 200 "$(echo "$OUT" | tail -1)" '.plugin_version | type' string "$(echo "$OUT" | sed '$d')"
+
+restore_permalinks
+trap - EXIT
+if [[ "$(wp option get permalink_structure 2>/dev/null)" == "$ORIGINAL_STRUCTURE" && "$(root_of "$CCC_URL/")" == "$CCC_URL/index.php?rest_route=/" ]]; then
+  PASS=$((PASS+1)); echo "  ok   permalink structure restored, root back to ?rest_route=/"
+else
+  FAIL=$((FAIL+1)); echo "  FAIL permalink structure not restored: '$(wp option get permalink_structure)'"
 fi
 
 summary

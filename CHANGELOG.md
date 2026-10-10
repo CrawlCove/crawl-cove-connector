@@ -9,9 +9,10 @@
   exactly that, review ticket #200). The contract now says: read the
   `Link rel="https://api.w.org/"` header on the site URL, fall back to the
   `?rest_route=` form, and treat a 2xx non-JSON body as "not the API". New
-  harness script `tests/integration/rest-root-checks.sh` (8 checks, wired
+  harness script `tests/integration/rest-root-checks.sh` (13 checks, wired
   into run.sh) pins the header, the advertised root and the route under it
-  against a real plain-permalink WordPress. No plugin code change.
+  against a real WordPress on both the plain (`?rest_route=`) and the pretty
+  (`/wp-json/`) permalink setting. No plugin code change.
 
 - **No em dashes in what the plugin itself says.** Six strings reworded:
   the plugin header description (the Plugins screen), the Tools page's
