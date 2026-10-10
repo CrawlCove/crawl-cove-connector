@@ -12,7 +12,9 @@
   harness script `tests/integration/rest-root-checks.sh` (13 checks, wired
   into run.sh) pins the header, the advertised root and the route under it
   against a real WordPress on both the plain (`?rest_route=`) and the pretty
-  (`/wp-json/`) permalink setting. No plugin code change.
+  (`/wp-json/`) permalink setting, and the taxonomy script now also resolves
+  a post and the static front page by their pretty URLs (what the crawler
+  really sends), not only by `?p=N`. No plugin code change.
 
 - **No em dashes in what the plugin itself says.** Six strings reworded:
   the plugin header description (the Plugins screen), the Tools page's

@@ -60,6 +60,22 @@ check "resolve: a term slug that doesn't exist is unresolvable, not a phantom ma
 req POST /resolve "$EDITOR" "{\"urls\":[\"$CCC_URL/?p=$CCC_POST_EDITOR\"]}"
 check "resolve: an ordinary post URL is still itself, never mistaken for a term" 200 "$RESP_HTTP" '.[0].post_id' "$CCC_POST_EDITOR" "$RESP_BODY"
 
+# The crawler sends what it crawled, i.e. the PRETTY post URL on a pretty-
+# permalink site (/editor-post/, not ?p=N). url_to_postid() handles that in
+# real WP only; the stubs cannot see it. Ask WP for the permalink rather
+# than guessing the slug, so this stays true if the fixture title changes.
+PRETTY_POST="$("${WPCLI[@]}" post url "$CCC_POST_EDITOR" --path="$CCC_SITE")"
+if [[ "$PRETTY_POST" == "$CCC_URL/"*"/" && "$PRETTY_POST" != *"?p="* ]]; then
+  PASS=$((PASS+1)); echo "  ok   fixture post permalink is pretty: $PRETTY_POST"
+else
+  FAIL=$((FAIL+1)); echo "  FAIL fixture post permalink is not pretty: '$PRETTY_POST'"
+fi
+req POST /resolve "$EDITOR" "{\"urls\":[\"$PRETTY_POST\"]}"
+check "resolve: the pretty post URL maps to the post" 200 "$RESP_HTTP" '.[0].post_id' "$CCC_POST_EDITOR" "$RESP_BODY"
+PRETTY_PAGE="$("${WPCLI[@]}" post url "$CCC_POST_HOME" --path="$CCC_SITE")"
+req POST /resolve "$EDITOR" "{\"urls\":[\"$PRETTY_PAGE\"]}"
+check "resolve: the static front page's own pretty URL maps to that page" 200 "$RESP_HTTP" '.[0].post_id' "$CCC_POST_HOME" "$RESP_BODY"
+
 if [[ "$CCC_ADAPTER" == "yoast" || "$CCC_ADAPTER" == "rankmath" || "$CCC_ADAPTER" == "seopress" ]]; then
   echo "-- taxonomy terms: capability is edit_term (manage_categories), author blocked --"
   # supports_term() is checked before the capability gate (apply()'s own
